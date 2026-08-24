@@ -41,7 +41,7 @@ baseline_commit: '144d2ab7492e89b06480c314b16053121b377f08'
 | Scenario | Input / State | Expected Output / Behavior | Error Handling |
 |----------|--------------|---------------------------|----------------|
 | Fresh build | root `npm run tokens:build` | Four artifacts written; exit 0 | N/A |
-| Token edit | change `color.brand.600`, rebuild | All four artifacts contain the new value | N/A |
+| Token edit | change `color.brand.600`, rebuild | `theme.json`, `tokens.css`, `tokens.theme.css` contain the new value; `tokens.base.css` reads it through `var(--color-primary)` | N/A |
 | Re-run, no edits | second build | Artifacts byte-identical | N/A |
 | Ownership clash | `theme.base.json` defines `settings.color.palette` | No artifact written for theme.json | exit 1, message names the key |
 | Broken reference | `$value: "{color.nope}"` | Build stops | non-zero exit, SD names the token |
