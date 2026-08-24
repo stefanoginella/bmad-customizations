@@ -1,6 +1,6 @@
 # woptimize.io
 
-Monorepo for Woptimize: the marketing site, the client portal, the connector
+Monorepo for WOptimize: the marketing site, the client portal, the connector
 plugin, and the shared design tokens.
 
 ## Repo map

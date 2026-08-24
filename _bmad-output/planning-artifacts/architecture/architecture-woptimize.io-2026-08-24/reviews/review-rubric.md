@@ -42,8 +42,8 @@ None.
 
 **F-3 — The connector's client-site PHP/WP floor is unpinned.**
 - **Points at:** Stack table; AD-7; AD-11.
-- **Problem:** Stack pins PHP 8.4 / WP 7.1 for Woptimize's own apps, but `packages/connector` runs on arbitrary client sites Woptimize does not control. PHP 8.4 syntax on an older client PHP fatals at parse time — before AD-7's no-op guard can execute — which breaks AD-7's own guarantee. Connector code and its tests need a floor to build against, or every connector story guesses one.
-- **Fix:** Add a Stack row: "Connector floor: PHP ≥ x.y, WP ≥ a.b" (whatever the user chooses), and note that the AD-11 matrix runs the connector at that floor. If all client sites are Woptimize-managed at 8.4 by policy, say that in one line instead — the decision just has to exist.
+- **Problem:** Stack pins PHP 8.4 / WP 7.1 for WOptimize's own apps, but `packages/connector` runs on arbitrary client sites WOptimize does not control. PHP 8.4 syntax on an older client PHP fatals at parse time — before AD-7's no-op guard can execute — which breaks AD-7's own guarantee. Connector code and its tests need a floor to build against, or every connector story guesses one.
+- **Fix:** Add a Stack row: "Connector floor: PHP ≥ x.y, WP ≥ a.b" (whatever the user chooses), and note that the AD-11 matrix runs the connector at that floor. If all client sites are WOptimize-managed at 8.4 by policy, say that in one line instead — the decision just has to exist.
 
 ### Medium
 

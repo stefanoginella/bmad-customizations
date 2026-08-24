@@ -87,7 +87,7 @@ else
   # Local-only credentials. Never used anywhere but this DDEV project.
   ddev wp core install \
     --url="${SITE_URL}" \
-    --title="Woptimize (local)" \
+    --title="WOptimize (local)" \
     --admin_user=admin \
     --admin_password=admin \
     --admin_email=admin@woptimize.ddev.site \

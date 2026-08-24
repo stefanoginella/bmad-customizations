@@ -4,7 +4,7 @@ type: architecture-spine
 purpose: build-substrate
 altitude: initiative
 paradigm: 'multi-app monorepo — build-time sharing, runtime independence'
-scope: 'The whole Woptimize system: www (WP), portal (Laravel), connector plugin, design tokens, playground, umami infra, CI/deploy'
+scope: 'The whole WOptimize system: www (WP), portal (Laravel), connector plugin, design tokens, playground, umami infra, CI/deploy'
 status: final
 created: '2026-08-24'
 updated: '2026-08-24'
@@ -45,13 +45,13 @@ graph LR
 
 - **Binds:** all
 - **Prevents:** copy-drift of tokens, a split plugin/portal contract, cross-app imports.
-- **Rule:** All Woptimize code lives in this repo, laid out per the Structural Seed. An app never imports another app's code. Sharing happens only through `packages/` at build time or through the contract (AD-4) at runtime.
+- **Rule:** All WOptimize code lives in this repo, laid out per the Structural Seed. An app never imports another app's code. Sharing happens only through `packages/` at build time or through the contract (AD-4) at runtime.
 
 ### AD-2 — One runtime coupling
 
 - **Binds:** all apps
 - **Prevents:** hidden coupling — shared databases, shared sessions, cross-app includes, portal reading WP tables.
-- **Rule:** The only runtime link between any two Woptimize components is the connector↔portal contract defined in `openapi.yaml` (AD-4) — connector-hosted `woptimize/v1` routes and portal-hosted `/api/connector/v1/*` routes. Each app owns its own database.
+- **Rule:** The only runtime link between any two WOptimize components is the connector↔portal contract defined in `openapi.yaml` (AD-4) — connector-hosted `woptimize/v1` routes and portal-hosted `/api/connector/v1/*` routes. Each app owns its own database.
 
 ### AD-3 — Token pipeline
 
@@ -85,7 +85,7 @@ graph LR
 ### AD-7 — The no-op invariant
 
 - **Binds:** CAP-3, `packages/connector`
-- **Prevents:** a Woptimize failure breaking a client's production site; retry storms; license logic creeping in.
+- **Prevents:** a WOptimize failure breaking a client's production site; retry storms; license logic creeping in.
 - **Rule:** The connector never breaks a client site. Every remote failure degrades to a silent no-op. Any `4xx` is **permanent-quiet**: stay silent until the next regular WP-Cron slot, never tighten the schedule. Only `5xx`/network errors may retry, at most once per cron slot. No fatals, no admin-notice spam. There is **no license system anywhere** — the update endpoints perform no license validation; offboarding is uninstall, and an orphaned connector no-ops forever.
 
 ### AD-8 — Karin's rule `[ADOPTED]`

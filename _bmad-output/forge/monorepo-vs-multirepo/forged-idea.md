@@ -1,4 +1,4 @@
-# Forged: Woptimize repo structure
+# Forged: WOptimize repo structure
 
 **Verdict: HARDENED — one GitHub monorepo, minus Umami.**
 

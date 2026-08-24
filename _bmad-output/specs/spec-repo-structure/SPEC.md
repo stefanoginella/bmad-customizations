@@ -10,16 +10,16 @@ sources:
 
 > **Canonical contract.** This SPEC and the files in `companions:` are the complete, preservation-validated contract for what to build, test, and validate. Source documents listed in frontmatter are for traceability — consult them only if you need narrative rationale or prose color this contract intentionally omits. Where this SPEC and `ARCHITECTURE-SPINE.md` (the spine) state the same fact, the spine supersedes.
 
-# Woptimize Repo Structure
+# WOptimize Repo Structure
 
 ## Why
 
-A pain to pre-empt: Woptimize is one product across several surfaces — a WP marketing site, a Laravel client portal, a connector plugin installed on client sites, and one design language. Separate repos would force private-package publishing or copy-drift for the token pipeline and would split the plugin/portal contract from its integration tests; the access-boundary argument for splitting is dead, since any future hire working on the portal needs the site repo too. One GitHub monorepo keeps contract, tokens, and tests together. Decision forged and hardened 2026-08; this spec is the build contract for that structure.
+A pain to pre-empt: WOptimize is one product across several surfaces — a WP marketing site, a Laravel client portal, a connector plugin installed on client sites, and one design language. Separate repos would force private-package publishing or copy-drift for the token pipeline and would split the plugin/portal contract from its integration tests; the access-boundary argument for splitting is dead, since any future hire working on the portal needs the site repo too. One GitHub monorepo keeps contract, tokens, and tests together. Decision forged and hardened 2026-08; this spec is the build contract for that structure.
 
 ## Capabilities
 
 - **CAP-1**
-  - **intent:** All Woptimize code lives in one GitHub monorepo — www theme + site plugin, portal, playground client site, design tokens, connector, Umami infra, CI workflows — laid out per `repo-layout.md`.
+  - **intent:** All WOptimize code lives in one GitHub monorepo — www theme + site plugin, portal, playground client site, design tokens, connector, Umami infra, CI workflows — laid out per `repo-layout.md`.
   - **success:** A fresh clone plus per-app setup yields working local dev for www and portal; every path in `repo-layout.md` exists.
 - **CAP-2**
   - **intent:** One design-token source (fonts, colors, typography, spacing, motion, buttons, links) builds the style artifacts both apps consume: `theme.json` + stylesheet for WP, Tailwind 4 `@theme` CSS file + stylesheet for Laravel.
