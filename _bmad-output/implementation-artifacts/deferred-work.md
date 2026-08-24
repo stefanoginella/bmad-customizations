@@ -29,10 +29,6 @@
   evidence: Review noted the 4-space JS/JSON style has no tool behind it; AGENTS.md says each unit keeps its own tooling. Cosmetic today, drift later.
 
 - source_spec: `_bmad-output/specs/spec-repo-structure/stories/5-portal-contract-side.md`
-  summary: Refresh the `AGENTS.md` managed block with `bmad-project-context` — it still states "each DDEV project mounts only its own app folder" with no exception, and does not list the portal's read-only `openapi.yaml` mount, the `site:*` commands, `/api/connector/v1/phone-home`, or the `symfony/yaml` dev dependency.
-  evidence: Review grepped `AGENTS.md` for `mnt/woptimize`, `docker-compose.contract`, `site:onboard`, and `phone-home` — zero hits. The block is managed; hand edits are replaced on refresh.
-
-- source_spec: `_bmad-output/specs/spec-repo-structure/stories/5-portal-contract-side.md`
   summary: Configure `trustProxies()` in `apps/portal/bootstrap/app.php` when the portal deploy (story 8) fixes the RunCloud/CDN topology — the refused-key warning throttles on `Request::ip()`, which collapses to the proxy address behind a load balancer.
   evidence: Review grepped `apps/portal/{app,bootstrap,config}` and `.env.example` for `trustProxies|TRUSTED_PROXIES` — nothing. The two per-IP tests set `REMOTE_ADDR` directly, so they cannot show it. The spec's Never list keeps deploy config out of story 5.
 

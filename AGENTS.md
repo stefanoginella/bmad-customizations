@@ -1,5 +1,5 @@
 <!-- bmad:context -->
-<!-- Verified 2026-08-24 against 581f18b. Managed by bmad-project-context; edits inside this block are replaced on refresh. Keep anything you want preserved outside the markers. -->
+<!-- Verified 2026-08-24 against 188bd5d. Managed by bmad-project-context; edits inside this block are replaced on refresh. Keep anything you want preserved outside the markers. -->
 
 ## woptimize.io
 
@@ -29,6 +29,12 @@ Planning artifacts live in `_bmad-output/`.
   `apps/www/themes/woptimize-theme/assets/css/tokens.css`,
   `apps/portal/resources/css/tokens.theme.css`,
   `apps/portal/resources/css/tokens.base.css`.
+- Only the portal issues a site key (AD-16), through
+  `php artisan site:onboard`. Store it as a SHA-256 hash, show it once when it
+  is issued, and never log or print it — `site:list` never prints a key.
+- Keep `WOPTIMIZE_ALLOW_PRIVATE_REST_BASE` false in production. It switches off
+  the guard that refuses a `rest_base` resolving to loopback or a private range;
+  `.env.example` sets it true for DDEV alone, where `*.ddev.site` is 127.0.0.1.
 
 ## Where things are
 
@@ -57,10 +63,16 @@ Planning artifacts live in `_bmad-output/`.
   through `ddev` — no local PHP, Composer, or WordPress.
 - The one exception is the token build: it needs **host** Node >= 24 (`.nvmrc` =
   `24`) and runs as `npm run tokens:build` from the repo root. It cannot run in
-  either container — each DDEV project mounts only its own app folder, while the
-  build reads `packages/` and writes into both apps. `www-setup` and
-  `portal-setup` run it as their first step and stop with an error when host
-  `npm` is missing.
+  either container — a DDEV project mounts its own app folder, while the build
+  reads `packages/` and writes into both apps. `www-setup` and `portal-setup`
+  run it as their first step and stop with an error when host `npm` is missing.
+- One mount crosses that line: `apps/portal/.ddev/docker-compose.contract.yaml`
+  binds `packages/connector/openapi.yaml` read-only at
+  `/mnt/woptimize/openapi.yaml` so the portal's `ContractTest` can parse it.
+  That test fails — it never skips — when the path is unreadable. It is a
+  single-file bind mount, so an editor that renames a temp file over
+  `openapi.yaml` leaves the container on the old inode: run `ddev restart` after
+  editing the contract, before trusting what `ContractTest` says.
 - `apps/www` setup is `ddev start` then `ddev www-setup`, run from `apps/www`.
   Nothing is set up by hand.
 - `apps/portal` setup is `ddev start` then `ddev portal-setup`, run from
@@ -102,6 +114,15 @@ Planning artifacts live in `_bmad-output/`.
   (AD-4). It is written 3.1 but kept 3.0.3-portable — no `nullable`, no type
   arrays, no `webhooks` — so story 6 can flip one line. `ContractTest` fails
   when the file and the plugin disagree.
+- The portal hosts `POST /api/connector/v1/phone-home`, and that route carries
+  no throttle on purpose. AD-7 makes any 4xx permanent-quiet until the next
+  daily slot, so a 429 from a shared client IP silences an honest site for a
+  day. Never add rate limiting to a connector route.
+- In `apps/portal/`: contract facts live once, in `app/Connector/Contract.php`.
+  `ContractTest` ties the two header names, the path prefix, the `SiteReport`
+  required lists, and the response statuses to `openapi.yaml`. The key length,
+  the key pattern, and the timeout are portal facts the contract carries only as
+  prose — no test catches drift there, so keep those three in step by hand.
 - In `packages/connector/`: the folder contents **are** the plugin folder
   (AD-17); `.distignore` lists what the release zip drops. The plugin has no
   Composer runtime dependencies. Every remote failure is a silent no-op (AD-7):
