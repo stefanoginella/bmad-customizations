@@ -94,3 +94,60 @@ Output starting with `EXTERNAL_REVIEW_ERROR`, or a non-zero exit, means the laye
 Do not invoke any skill, and do not spawn subagents of your own. Return the findings as text in your final message; do not route them through any findings-reporting tool the host may offer.
 
 """
+
+# ---------------------------------------------------------------------------
+# Implementation handoff — conditional TDD, red and green split across agents
+# ---------------------------------------------------------------------------
+#
+# A spec with an I/O & Edge-Case Matrix is built test-first by two agents:
+#   RED    writes the tests and the stubs, never the behaviour
+#   GREEN  writes the behaviour, never the tests
+# The agent that writes the tests never sees the code, so it cannot bend the
+# tests to fit the code — the same independence argument as the external
+# review layers above. A spec without a matrix is built normally by one agent.
+# The planner decides at step 02 by keeping or deleting the matrix; the
+# handoff only reads the outcome, so no judgement call happens at implement
+# time.
+
+[workflow]
+implementation_handoff = """
+Check whether {spec_file} contains a section titled `## I/O & Edge-Case Matrix` with at least one data row.
+
+**If it does not**, launch one subagent with no prior conversation context, with this prompt:
+
+> Read {spec_file} fully and implement it — the spec is the sole source of truth. Load every file listed in its frontmatter `context:` before you start.
+>
+> Run the commands in the spec's `## Verification` section (or perform its manual checks). Do not skip, disable, or filter out tests.
+>
+> When done, report what you changed, how you verified it, and anything left incomplete or risky.
+
+**If it does**, run the two agents below one after the other. Wait for RED to return before launching GREEN. If RED reports that a test could not be made to fail, or that a matrix row is ambiguous, stop and treat it as a matrix ambiguity — do not launch GREEN.
+
+RED — launch a subagent with no prior conversation context, with this prompt:
+
+> Read {spec_file} fully. The spec is the sole source of truth. Load every file listed in its frontmatter `context:` before you start.
+>
+> You write tests, not behaviour. For every row of the `## I/O & Edge-Case Matrix`, write one test that asserts that row's Expected Output / Behavior and, when it is not N/A, its Error Handling. Use the file paths, names, and signatures in the spec's Code Map and Tasks so a second agent can implement against your tests without renaming anything. Follow the test framework and conventions already used in that package.
+>
+> Where a symbol the tests need does not exist yet, create the smallest stub that lets the test compile and run — a function or method that returns null or throws a not-implemented error. Never write real behaviour in a stub.
+>
+> Run the test command from the spec's `## Verification` section. Every new test must FAIL, and every pre-existing test must still PASS. If a new test passes before any behaviour exists, the test is wrong or the row is already covered — fix the test, or if the matrix row itself is ambiguous, stop and report it. Never proceed on a test that has not failed.
+>
+> Do not skip, disable, or filter out tests. Do not implement behaviour beyond stubs.
+>
+> When done, report: each matrix row with the test that covers it, the exact command you ran, the count of new failing tests and pre-existing passing tests, and anything ambiguous.
+
+GREEN — launch a subagent with no prior conversation context, with this prompt:
+
+> Read {spec_file} fully and implement it — the spec is the sole source of truth. Load every file listed in its frontmatter `context:` before you start.
+>
+> A previous agent has already written failing tests for every row of the `## I/O & Edge-Case Matrix`, plus stubs. Run the test command from the spec's `## Verification` section first and confirm those tests fail.
+>
+> Make them pass, one test at a time: write the smallest behaviour change that turns the next test green, run the suite, continue. You may not edit, delete, skip, disable, or filter any test file. If you believe a test is wrong, stop and report the test and the matrix row — do not change it and do not work around it.
+>
+> Then implement any remaining tasks in `## Tasks & Acceptance` that no matrix row covers.
+>
+> When the whole suite is green, refactor the code you touched — remove duplication, dead code, and unclear names — and keep the suite green. Then run every command in `## Verification`.
+>
+> When done, report what you changed, how you verified it, which tests you saw go from red to green, and anything left incomplete or risky.
+"""
