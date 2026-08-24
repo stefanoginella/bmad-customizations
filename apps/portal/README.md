@@ -94,6 +94,60 @@ DDEV patches in, so local mirrors production.
 Style is the bundled **Laravel Pint** with a committed `pint.json` pinning
 `"preset": "laravel"`.
 
+`tests/Feature/ContractTest.php` parses the contract file itself, so it needs
+the read-only mount `.ddev/docker-compose.contract.yaml` sets up. After a fresh
+clone run `ddev restart` once, then check it:
+
+```bash
+ddev exec test -r /mnt/woptimize/openapi.yaml
+```
+
+The test **fails** — it never skips — when that path is unreadable. Point it
+somewhere else with `WOPTIMIZE_CONTRACT_FILE` if you ever need to.
+
+It is a **single-file** bind mount, and those go stale: an editor that saves by
+writing a temp file and renaming it over `openapi.yaml` leaves the container
+holding the old inode. After editing the contract, run `ddev restart` before
+trusting what `ContractTest` says.
+
+## Connector contract side
+
+The portal owns the `sites` registry and the portal half of
+[`packages/connector/openapi.yaml`](../../packages/connector/openapi.yaml).
+
+```
+POST /api/connector/v1/phone-home     auth: X-Woptimize-Site-Key header
+```
+
+A client site posts its `SiteReport` there once a day. The request is
+authenticated by the `connector` guard — a `viaRequest` guard that hashes the
+presented key, finds the row by `site_key_hash`, and confirms it with
+`hash_equals()`. Anything else gets Laravel's default
+`401 {"message":"Unauthenticated."}` and touches no row. A bad body gets a
+`422`. There is deliberately **no throttle** on the route: a connector treats
+any 4xx as permanent-quiet until the next daily slot (AD-7), so a 429 caused by
+a shared client IP would silence an honest site for a day.
+
+Onboarding is Artisan for now — the portal has no login yet, and only the
+portal may ever issue a key (AD-16):
+
+```bash
+ddev exec php artisan site:onboard https://client.example   # row + key, printed once
+ddev exec php artisan site:list                             # id, site_url, connector_version, last_seen_at
+ddev exec php artisan site:rotate-key <site>                # new key; the old one dies at once
+ddev exec php artisan site:offboard <site>                  # row deleted; its key 401s from then on
+ddev exec php artisan site:ping <site>                      # GET {rest_base}/ping
+ddev exec php artisan site:status <site>                    # GET {rest_base}/status
+```
+
+`<site>` is an id or a `site_url`. A failure exits 1 with one line. `site:list`
+never prints a key, and neither does any log line.
+
+`rest_base` is whatever the site reported — the portal never derives it from
+`site_url`, and refuses to call a site that has not phoned home yet. A pull is
+read-only: `last_seen_at` means "phoned home", so `site:ping` and `site:status`
+never write the registry.
+
 ## Layout
 
 ```
@@ -110,6 +164,7 @@ apps/portal/
   node_modules/      gitignored
   .env               written by DDEV — gitignored
   .ddev/             DDEV project root; docroot: public         — in git
+    docker-compose.contract.yaml   mounts openapi.yaml read-only — in git
 ```
 
 ## Design tokens
@@ -149,3 +204,12 @@ so Tailwind utilities and the portal's own CSS always win.
 - The portal never imports another app's code. Design tokens arrive through
   `packages/design-tokens`; the connector link is the versioned contract in
   `packages/connector/openapi.yaml`.
+- Contract facts live once, in `app/Connector/Contract.php`. `ContractTest`
+  ties four of them to `openapi.yaml` — the two header names, the path prefix,
+  the `SiteReport` required lists (top level and nested), and the documented
+  response statuses. The key length, the key pattern, and the timeout are
+  **portal** facts: the contract carries them only as prose, so no test can
+  compare them. Keep those three in step by hand, and change `openapi.yaml`
+  first, both directions in one PR.
+- A site key is never stored in plaintext, never logged, and never printed by
+  `site:list`. It is shown once, when it is issued.

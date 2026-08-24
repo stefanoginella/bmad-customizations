@@ -42,6 +42,12 @@ return [
             'driver' => 'session',
             'provider' => 'users',
         ],
+
+        // The connector half of the contract (AD-6). A `viaRequest` guard
+        // resolves the `App\Models\Site` itself, so it needs no provider.
+        'connector' => [
+            'driver' => 'site-key',
+        ],
     ],
 
     /*

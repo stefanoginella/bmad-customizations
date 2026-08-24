@@ -27,3 +27,15 @@
 - source_spec: `_bmad-output/specs/spec-repo-structure/stories/3-design-token-pipeline.md`
   summary: Add a lint/format script to `packages/design-tokens` (the portal has Pint, www follows WPCS; the token package enforces nothing).
   evidence: Review noted the 4-space JS/JSON style has no tool behind it; AGENTS.md says each unit keeps its own tooling. Cosmetic today, drift later.
+
+- source_spec: `_bmad-output/specs/spec-repo-structure/stories/5-portal-contract-side.md`
+  summary: Refresh the `AGENTS.md` managed block with `bmad-project-context` — it still states "each DDEV project mounts only its own app folder" with no exception, and does not list the portal's read-only `openapi.yaml` mount, the `site:*` commands, `/api/connector/v1/phone-home`, or the `symfony/yaml` dev dependency.
+  evidence: Review grepped `AGENTS.md` for `mnt/woptimize`, `docker-compose.contract`, `site:onboard`, and `phone-home` — zero hits. The block is managed; hand edits are replaced on refresh.
+
+- source_spec: `_bmad-output/specs/spec-repo-structure/stories/5-portal-contract-side.md`
+  summary: Configure `trustProxies()` in `apps/portal/bootstrap/app.php` when the portal deploy (story 8) fixes the RunCloud/CDN topology — the refused-key warning throttles on `Request::ip()`, which collapses to the proxy address behind a load balancer.
+  evidence: Review grepped `apps/portal/{app,bootstrap,config}` and `.env.example` for `trustProxies|TRUSTED_PROXIES` — nothing. The two per-IP tests set `REMOTE_ADDR` directly, so they cannot show it. The spec's Never list keeps deploy config out of story 5.
+
+- source_spec: `_bmad-output/specs/spec-repo-structure/stories/5-portal-contract-side.md`
+  summary: The playground setup (story 6) must make WordPress trust DDEV's mkcert root, or set `sslverify` off for `*.ddev.site` — otherwise the connector's `wp_remote_post` to `portal.woptimize.ddev.site` fails TLS and the phone-home records `transport_error`.
+  evidence: The story-5 smoke on www needed a throwaway mu-plugin (`zz-ddev-ca.php`, deleted afterwards) to reach the local portal; WordPress ships its own CA bundle. Story 6's integration suite runs both venues and will hit the same wall.

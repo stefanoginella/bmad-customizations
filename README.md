@@ -71,6 +71,13 @@ comment — carries it as its first key, `__generated`.
 The build runs on the host, not in DDEV: each DDEV project mounts only its own
 app folder, while the build reads `packages/` and writes into both apps.
 
+That "own app folder only" rule has exactly one exception. `apps/portal`
+mounts `packages/connector/openapi.yaml` **read-only** at
+`/mnt/woptimize/openapi.yaml`, through
+`apps/portal/.ddev/docker-compose.contract.yaml`, so the portal's
+`ContractTest` can parse the contract it serves. Nothing writes through that
+mount.
+
 ## Rules that bind the whole tree
 
 - An app never imports another app's code. Sharing happens through `packages/`
@@ -78,7 +85,13 @@ app folder, while the build reads `packages/` and writes into both apps.
 - That contract lives in
   [`packages/connector/openapi.yaml`](packages/connector/openapi.yaml) and
   covers both directions. Change the file **before** the code, both directions
-  in one PR.
+  in one PR. Both sides guard it with their own `ContractTest`:
+  `packages/connector/tests/ContractTest.php` and
+  `apps/portal/tests/Feature/ContractTest.php`.
+- The portal issues every site key and is the only host of
+  `/api/connector/v1/phone-home`. See
+  [`apps/portal/README.md`](apps/portal/README.md) for the registry and the
+  `site:*` commands.
 - The connector runs on client sites, so its floor is PHP 8.1 / WP 6.7 — no PHP
   8.2+ syntax — while the two apps target PHP 8.4. Every remote failure in the
   connector degrades to a silent no-op; it must never break a client's site.
@@ -90,3 +103,9 @@ app folder, while the build reads `packages/` and writes into both apps.
 
 Architecture, specs, and stories live in `_bmad-output/`. The architecture
 spine is the tie-breaker for anything cross-cutting.
+
+`AGENTS.md` (which `CLAUDE.md` includes) carries a **managed block** between the
+`<!-- bmad:context -->` and `<!-- /bmad:context -->` markers. Edits inside those
+markers are overwritten on the next refresh, so change it by running the
+`bmad-project-context` skill after anything that moves a fact it states. Text
+outside the markers is yours to edit by hand.
