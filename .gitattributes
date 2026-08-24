@@ -3,6 +3,6 @@
 
 # Shell scripts must keep LF everywhere. A CRLF checkout on Windows makes the
 # committed DDEV commands unrunnable.
-apps/www/.ddev/commands/** text eol=lf
+apps/*/.ddev/commands/** text eol=lf
 *.sh text eol=lf
 *.bash text eol=lf

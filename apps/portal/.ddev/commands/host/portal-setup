@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+
+## Description: Build the whole local portal dev state: install dependencies, set the app key, migrate, build assets.
+## Usage: portal-setup
+## Example: "ddev portal-setup"
+## ProjectTypes: laravel
+## HostWorkingDir: false
+
+set -euo pipefail
+
+APPROOT="${DDEV_APPROOT:?run this through ddev (ddev portal-setup)}"
+SITE_URL="${DDEV_PRIMARY_URL:-https://portal.woptimize.ddev.site}"
+
+cd "${APPROOT}"
+
+# Read APP_KEY out of .env. Empty when the key is unset or blank.
+current_app_key() {
+  [ -f .env ] || return 0
+  sed -n 's/^APP_KEY=//p' .env | head -n 1 | tr -d "\"' " | tr -d '[:space:]'
+}
+
+# --- 1. PHP dependencies -----------------------------------------------------
+echo "==> Installing Composer dependencies ..."
+ddev composer install
+
+# --- 2. .env -----------------------------------------------------------------
+# DDEV's laravel project type writes .env from .env.example at every start and
+# patches APP_URL + DB_* into it. This command never writes those keys. If the
+# file is gone, a start is the only thing that brings it back.
+if [ ! -f .env ]; then
+  echo "ERROR: .env is missing — DDEV generates it, not this command." >&2
+  echo "       Run 'ddev restart', then run 'ddev portal-setup' again." >&2
+  exit 1
+fi
+
+# --- 3. Application key ------------------------------------------------------
+# Generated once. Re-running must not rotate it — that would invalidate every
+# encrypted value and session already in the local database.
+if [ -z "$(current_app_key)" ]; then
+  echo "==> Generating APP_KEY ..."
+  ddev exec php artisan key:generate
+else
+  echo "==> APP_KEY already set — skipping."
+fi
+
+# --- 4. Database -------------------------------------------------------------
+echo "==> Running migrations ..."
+ddev exec php artisan migrate --force
+
+# --- 5. Front-end assets -----------------------------------------------------
+echo "==> Installing npm dependencies ..."
+ddev npm install
+
+echo "==> Building assets ..."
+ddev npm run build
+
+echo
+echo "Done. ${SITE_URL}"

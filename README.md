@@ -29,6 +29,7 @@ Each app is its own DDEV project and carries its own README with the
 quickstart:
 
 - [`apps/www/README.md`](apps/www/README.md) — `ddev start` + `ddev www-setup`
+- [`apps/portal/README.md`](apps/portal/README.md) — `ddev start` + `ddev portal-setup`
 
 There is no root `composer.json` and no npm/composer workspaces. Every unit
 manages its own dependencies.
