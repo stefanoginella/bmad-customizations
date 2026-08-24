@@ -1,0 +1,9 @@
+name: woptimize
+type: wordpress
+docroot: wordpress
+php_version: "8.4"
+webserver_type: nginx-fpm
+# Provisional. RunCloud provisioning (story 7) fixes the real major; this then mirrors it.
+database:
+  type: mariadb
+  version: "11.8"

@@ -157,7 +157,7 @@ graph LR
 
 - **Binds:** CAP-3, CAP-6, AD-11, `apps/playground`, `apps/portal`
 - **Prevents:** the suite's two users imagining different playground states; tests that only pass on a hand-glued local setup.
-- **Rule:** `apps/playground` is its **own DDEV project** and mirrors the www layout rules (WP install gitignored) minus the theme. One committed DDEV command, `ddev playground-setup`, produces its entire test state: installs WP (PHP at the connector floor), symlinks `packages/connector` into `wp-content/plugins/woptimize-connector`, activates it, and sets the fixture site key from `WOPTIMIZE_TEST_SITE_KEY` (fixed default in `.ddev` config). `apps/portal` is also a DDEV project; the suite starts both — playground at `https://playground.ddev.site`, portal at `https://portal.ddev.site` — and the portal tests read the same fixture-key variable. Nothing about the test state is set up by hand.
+- **Rule:** `apps/playground` is its **own DDEV project** and mirrors the www layout rules (WP install gitignored) minus the theme. One committed DDEV command, `ddev playground-setup`, produces its entire test state: installs WP (PHP at the connector floor), symlinks `packages/connector` into `wp-content/plugins/woptimize-connector`, activates it, and sets the fixture site key from `WOPTIMIZE_TEST_SITE_KEY` (fixed default in `.ddev` config). `apps/portal` is also a DDEV project; the suite starts both — playground at `https://playground.ddev.site`, portal at `https://portal.woptimize.ddev.site` — and the portal tests read the same fixture-key variable. Nothing about the test state is set up by hand.
 
 ### AD-19 — Minimum observability
 
@@ -170,6 +170,7 @@ graph LR
 | Concern | Convention |
 | --- | --- |
 | CI workflows | One workflow per **deployable surface**: `www.yml`, `portal.yml`, `connector.yml`, `umami.yml`. `design-tokens` has none — it rides inside the app workflows. |
+| Hostnames | www: `www.woptimize.io` (local `woptimize.ddev.site`); portal: `portal.woptimize.io` (local `portal.woptimize.ddev.site`); umami: `data.woptimize.io`. Playground is local-only (`playground.ddev.site`) — it plays a client site, so it stays outside the woptimize namespace. |
 | CI path filters | Each workflow triggers on its own path **plus every `packages/` path it consumes**: `www.yml` + `portal.yml` also on `packages/design-tokens/**`; `connector.yml` on `packages/connector/**` + `apps/portal/**`; `umami.yml` on `infra/umami/**`. |
 | Secrets naming | Repo-level, app-prefixed: `<APP>_SSH_HOST`, `<APP>_SSH_USER`, `<APP>_SSH_KEY`, `<APP>_DEPLOY_PATH` |
 | Token format | DTCG `$value`/`$type` JSON; artifact paths and filenames are fixed in AD-3, never by consumers |
@@ -272,5 +273,5 @@ graph TB
 - **Node 26 LTS bump** — when it enters Active LTS (October 2026).
 - **PHP 8.5 bump for own apps** — plan during 2027; PHP 8.4 active support ends Dec 2026 (security fixes to Dec 2028).
 - **Observability beyond the AD-19 floor** (APM, log aggregation) — when the floor proves too small.
-- **Umami public exposure** (subdomain, reverse proxy) — build story, contained in `infra/umami`.
+- **Umami public exposure** (subdomain `data.woptimize.io`, reverse proxy) — build story, contained in `infra/umami`.
 - **CI internals** (caching, concurrency groups) — readable off the workflow files once they exist.
