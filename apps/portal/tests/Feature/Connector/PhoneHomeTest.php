@@ -162,3 +162,77 @@ it('stores a padded site name exactly as it arrived', function () {
 
     expect($site->refresh()->last_report['site_name'])->toBe(' Client Example ');
 });
+
+// SSRF. A key holder writes its own report, so `rest_base` is attacker input:
+// unchecked, it aims the portal's own outbound call at localhost, at the
+// private network, or at a cloud metadata endpoint.
+//
+// The suite runs with `allow_private_rest_base` on (see Pest.php) because the
+// fixtures use a name that resolves nowhere; these tests turn it off.
+
+/**
+ * A public literal IP, so the fixture's own `home_url` needs no DNS.
+ */
+const PUBLIC_HOST = 'https://93.184.216.34';
+
+/**
+ * Asserts a private `rest_base` is refused with the guard switched on.
+ */
+function rejectsPrivateRestBase(string $restBase): void
+{
+    config()->set('connector.allow_private_rest_base', false);
+
+    $site = reportedSite();
+    $before = $site->last_seen_at;
+
+    phoneHome($site, siteReport([
+        'home_url' => PUBLIC_HOST,
+        'rest_base' => $restBase,
+    ]))
+        ->assertStatus(422)
+        ->assertJsonValidationErrors('rest_base');
+
+    assertRegistryUntouched($site, $before);
+}
+
+it('refuses a rest_base on loopback', function () {
+    rejectsPrivateRestBase('http://127.0.0.1/wp-json/woptimize/v1');
+});
+
+it('refuses a rest_base on the private network', function () {
+    rejectsPrivateRestBase('http://10.0.0.5/wp-json/woptimize/v1');
+});
+
+it('refuses a rest_base on the cloud metadata endpoint', function () {
+    rejectsPrivateRestBase('http://169.254.169.254/wp-json/woptimize/v1');
+});
+
+it('refuses a rest_base on IPv6 loopback', function () {
+    rejectsPrivateRestBase('http://[::1]/wp-json/woptimize/v1');
+});
+
+it('refuses a rest_base on an IPv6 unique local address', function () {
+    rejectsPrivateRestBase('http://[fd00::1]/wp-json/woptimize/v1');
+});
+
+it('refuses a rest_base on the unspecified address', function () {
+    rejectsPrivateRestBase('http://0.0.0.0/wp-json/woptimize/v1');
+});
+
+// A host nobody can resolve could become anything later.
+it('refuses a rest_base whose host resolves nowhere', function () {
+    rejectsPrivateRestBase('http://nothing.invalid/wp-json/woptimize/v1');
+});
+
+// Local development: `*.ddev.site` resolves to 127.0.0.1.
+it('accepts a private rest_base when the switch is on', function () {
+    config()->set('connector.allow_private_rest_base', true);
+
+    $site = reportedSite();
+
+    phoneHome($site, siteReport(['rest_base' => 'http://127.0.0.1/wp-json/woptimize/v1']))
+        ->assertOk()
+        ->assertExactJson(['ok' => true]);
+
+    expect($site->refresh()->rest_base)->toBe('http://127.0.0.1/wp-json/woptimize/v1');
+});

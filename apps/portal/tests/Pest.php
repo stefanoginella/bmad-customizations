@@ -17,6 +17,10 @@ use Tests\TestCase;
 
 pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)
+    // The fixtures report `https://client.example`, a reserved name that
+    // resolves nowhere, so `App\Connector\Rules\PublicHost` would refuse every
+    // one of them. The tests that are about that rule turn this back off.
+    ->beforeEach(fn () => config()->set('connector.allow_private_rest_base', true))
     ->in('Feature');
 
 /*

@@ -148,6 +148,20 @@ never prints a key, and neither does any log line.
 read-only: `last_seen_at` means "phoned home", so `site:ping` and `site:status`
 never write the registry.
 
+Because a key holder writes its own report, `rest_base` is attacker input, and
+the portal is the thing that fetches it. `App\Connector\Rules\PublicHost`
+therefore refuses a `rest_base` (and a `home_url`) whose host resolves anywhere
+private: loopback, the private ranges, link-local — so
+`http://169.254.169.254/` and a friendly name pointed at `127.0.0.1` are both
+422. A host that resolves nowhere is refused too, and `ConnectorClient` keeps
+`withoutRedirecting()` so a public host cannot bounce the call somewhere
+private.
+
+That rule would refuse every local client site, since `*.ddev.site` resolves to
+`127.0.0.1`. `WOPTIMIZE_ALLOW_PRIVATE_REST_BASE=true` turns it off and is set
+in `.env.example` for exactly that reason. **Keep it false in production** —
+`config/connector.php` defaults to false when the key is absent.
+
 ## Layout
 
 ```

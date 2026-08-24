@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Connector;
 
+use App\Connector\Rules\PublicHost;
 use Closure;
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -35,10 +36,13 @@ class PhoneHomeRequest extends FormRequest
         return [
             // `\z` not `$`: `$` also matches before a trailing newline.
             'connector_version' => ['required', 'string', 'max:'.self::MAX_STRING, 'regex:/^\d+\.\d+\.\d+\z/'],
+            // `site_url` is where WordPress core lives; the portal never
+            // fetches it, so it is not held to the public-host rule.
             'site_url' => $this->urlRules(),
-            'home_url' => $this->urlRules(),
-            // The one URL the portal ever calls back on (AD-6).
-            'rest_base' => [...$this->urlRules(), $this->rejectQueryOrFragment()],
+            'home_url' => [...$this->urlRules(), new PublicHost],
+            // The one URL the portal ever calls back on (AD-6), and the reason
+            // the public-host rule exists.
+            'rest_base' => [...$this->urlRules(), new PublicHost, $this->rejectQueryOrFragment()],
             'site_name' => ['present', 'string'],
             'wp_version' => ['present', 'string'],
             'php_version' => ['present', 'string'],

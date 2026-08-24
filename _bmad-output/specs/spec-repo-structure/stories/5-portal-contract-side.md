@@ -99,6 +99,8 @@ context: []
 
 ## Spec Change Log
 
+- 2026-08-24, after review iteration 1 (human decision): the security layer's SSRF finding on `rest_base` was first dismissed because the Design Notes accepted a key-holder-controlled `rest_base`. The human overruled: the portal now rejects a `rest_base` / `home_url` whose host resolves to a loopback, private (RFC1918), link-local, unique-local, or `0.0.0.0/8` address (`App\Connector\Rules\PublicHost`), gated by `WOPTIMIZE_ALLOW_PRIVATE_REST_BASE` (true only in DDEV, where `*.ddev.site` → 127.0.0.1). Known-bad state avoided: a validated key holder turning `site:status` into an internal-network read. KEEP: no host comparison against `site_url`/`home_url` (still meaningless), `withoutRedirecting()`, human-run pulls only, the frozen matrix unchanged.
+
 ## Review Triage Log
 
 Review iteration 1 — 8 layers (blind, edge-case, verification-gap, security, structure, external blind/edge/intent via Codex gpt-5.6-sol). Every finding was verified at its site before the verdict.
@@ -130,7 +132,7 @@ Review iteration 1 — 8 layers (blind, edge-case, verification-gap, security, s
 
 **Dismissed:**
 
-- SSRF host / private-range check on `rest_base` and the "cloned site overwrites its row" variant: the spec's Design Notes accept that a key holder controls its own report and reject a `home_url` host check; a private-range block would also break local dev (`*.ddev.site` → 127.0.0.1). The scheme half is patched (P1); the rest is a spec decision. [security, blind, ext-blind]
+- ~~SSRF private-range check on `rest_base`~~ — first dismissed as a spec decision, then **patched on human instruction** (P17, see Spec Change Log): `PublicHost` rule, env-gated for DDEV. The "cloned site overwrites its row" variant stays dismissed: the Design Notes reject a host comparison against `site_url`. [security, blind, ext-blind]
 - `site:onboard` URL canonicalisation (trailing slash, case, default port): the spec defines `site_url` as human-entered and unique as typed. [edge, ext-blind]
 - `site:offboard` confirmation / `--force`: not in the spec; `confirmToProceed()` only prompts in production. Low. [blind, ext-blind]
 - Concurrency: two rotations, two refused requests inside one rate-limit tick, offboard between auth and save, crash before the key prints — single-operator human-run commands; consequence tolerable. [ext-edge]
@@ -147,7 +149,7 @@ Review iteration 1 — 8 layers (blind, edge-case, verification-gap, security, s
 - `sha256(key)` as the lookup column: 40 alphanumeric characters ≈ 238 bits, so a plain hash is not reversible in practice; an HMAC would add a second secret for no gain.
 - No route throttle: AD-7 makes any 4xx permanent-quiet for a day, so a 429 caused by a shared client IP would silence honest sites. The key space makes brute force irrelevant; the rate limit goes on the log line instead.
 - A pull (`site:status`) never writes the registry: AD-19 reads `last_seen_at` as "the cron still works", which a manual pull would fake.
-- The portal calls whatever `rest_base` a site reported: a key holder controls its own report, so a host check against `home_url` proves nothing. Outbound calls happen only from a human-run command, with a 10 s cap and no redirects.
+- The portal calls whatever `rest_base` a site reported: a key holder controls its own report, so a host check against `home_url` proves nothing. What the portal does refuse is a `rest_base` on a non-public address (loopback, RFC1918, link-local, ULA, `0.0.0.0/8`) — the only thing a hostile key holder gains from `rest_base` is a read into the portal's own network. `WOPTIMIZE_ALLOW_PRIVATE_REST_BASE=true` lifts that check in DDEV only. Outbound calls happen only from a human-run command, with a 10 s cap and no redirects.
 
 ## Verification
 
