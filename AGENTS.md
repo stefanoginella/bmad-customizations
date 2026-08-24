@@ -1,12 +1,12 @@
 <!-- bmad:context -->
-<!-- Verified 2026-08-24 against 068b46f. Managed by bmad-project-context; edits inside this block are replaced on refresh. Keep anything you want preserved outside the markers. -->
+<!-- Verified 2026-08-24 against eac1483. Managed by bmad-project-context; edits inside this block are replaced on refresh. Keep anything you want preserved outside the markers. -->
 
 ## woptimize.io
 
 Multi-app monorepo for WOptimize: a WordPress marketing site, a Laravel client
-portal, a connector plugin for client sites, and one design-token source. Only
-`apps/www` has code — the rest of the tree is `.gitkeep` placeholders a later
-story fills. Planning artifacts live in `_bmad-output/`.
+portal, a connector plugin for client sites, and one design-token source.
+`apps/www` and `apps/portal` have code — the rest of the tree is `.gitkeep`
+placeholders a later story fills. Planning artifacts live in `_bmad-output/`.
 
 ## Policy
 
@@ -31,17 +31,26 @@ story fills. Planning artifacts live in `_bmad-output/`.
 - Work parked for a later story:
   `_bmad-output/implementation-artifacts/deferred-work.md`
 - WP marketing site: `apps/www/` — read `apps/www/README.md` before working there.
+- Laravel client portal: `apps/portal/` — read `apps/portal/README.md` before
+  working there.
 
 ## Running and verifying
 
 - No root `composer.json`, no npm or Composer workspaces. Every unit installs
   its own dependencies; there is no repo-wide install, build, or test command.
+- Both DDEV apps need DDEV >= 1.25 and a Docker provider. Nothing runs on local
+  PHP, Composer, Node, or WordPress — every command goes through `ddev`.
 - `apps/www` setup is `ddev start` then `ddev www-setup`, run from `apps/www`.
-  Nothing is set up by hand. Needs DDEV >= 1.25 and a Docker provider — no
-  local PHP, Composer, or WordPress.
+  Nothing is set up by hand.
+- `apps/portal` setup is `ddev start` then `ddev portal-setup`, run from
+  `apps/portal`. Nothing is set up by hand.
 - After deleting `apps/www/wordpress/`, run `ddev restart` before
   `ddev www-setup`. DDEV writes `wordpress/wp-config.php` and `www-setup` does
   not, so `www-setup` stops with an error without the restart.
+- In `apps/portal/`: `.env` is DDEV's file. DDEV creates it from `.env.example`
+  when it is absent, and patches `APP_URL` and `DB_*` into it at every start.
+  When `.env` is missing, run `ddev restart` before `ddev portal-setup` — the
+  command stops with an error. Never write those keys from a script.
 - The WordPress pin is `WP_VERSION` at the top of
   `apps/www/.ddev/commands/host/www-setup` and nowhere else.
 - TODO — spine AD-3 specifies `npm run tokens:build` from a root
@@ -64,5 +73,7 @@ story fills. Planning artifacts live in `_bmad-output/`.
   puts the relative symlink targets outside the container mount.
 - In `apps/www/`: the `wp-content` symlinks are relative and per item
   (`../../../themes/woptimize-theme`). Absolute targets break in the container.
+- In `apps/portal/`: tests are Pest 5, not the skeleton's PHPUnit. Write Pest
+  syntax; run `ddev exec php artisan test`.
 
 <!-- /bmad:context -->
