@@ -19,12 +19,22 @@
 #             the work started from.
 #
 # Output contract (the calling review layer depends on these markers):
-#   EXTERNAL_REVIEW_CLI: <name>    provenance, printed on every successful run
+#   EXTERNAL_REVIEW_CLI: <name> (model: .., effort: .., mode: ..)
+#                                  provenance, printed on every successful run
 #   EXTERNAL_REVIEW_EMPTY: ...     nothing to review; not a failure, exit 0
 #   EXTERNAL_REVIEW_SKIP: ...      preconditions absent; not a failure, exit 0
 #   EXTERNAL_REVIEW_ERROR: ...     the layer failed; exits non-zero
 #
 set -uo pipefail
+
+# --- pinned reviewer models ---------------------------------------------------
+# Pinned on purpose. A review that silently follows whatever model the user last
+# selected is not reproducible, and two runs of the same diff stop being
+# comparable. Change these here, deliberately, not by changing a global default.
+CODEX_MODEL="gpt-5.6-sol"
+CODEX_EFFORT="xhigh"
+CLAUDE_MODEL="opus"
+CLAUDE_EFFORT="xhigh"
 
 MODE=""
 DIFF=""
@@ -144,12 +154,23 @@ ${CONTENT}
 Review only. Do not edit, create, or delete any file."
 
 # --- run ---------------------------------------------------------------------
-echo "EXTERNAL_REVIEW_CLI: ${CLI} (mode: ${MODE})"
+if [ "$CLI" = "codex" ]; then
+  MODEL="$CODEX_MODEL"; EFFORT="$CODEX_EFFORT"
+else
+  MODEL="$CLAUDE_MODEL"; EFFORT="$CLAUDE_EFFORT"
+fi
+echo "EXTERNAL_REVIEW_CLI: ${CLI} (model: ${MODEL}, effort: ${EFFORT}, mode: ${MODE})"
 
 if [ "$CLI" = "codex" ]; then
-  printf '%s' "$PROMPT" | codex exec --sandbox read-only -
+  printf '%s' "$PROMPT" | codex exec \
+    --sandbox read-only \
+    --model "$CODEX_MODEL" \
+    -c model_reasoning_effort="$CODEX_EFFORT" \
+    -
 else
-  printf '%s' "$PROMPT" | claude -p
+  printf '%s' "$PROMPT" | claude -p \
+    --model "$CLAUDE_MODEL" \
+    --effort "$CLAUDE_EFFORT"
 fi
 
 STATUS=$?
