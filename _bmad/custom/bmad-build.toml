@@ -1,0 +1,182 @@
+# Team override for bmad-build.
+#
+# Adds layers on BOTH review routes:
+#   [[workflow.review_layers]]          the standard review step
+#   [[workflow.oneshot_review_layers]]  the one-shot route
+#
+# Keyed by `id`, so new ids append and every shipped layer is preserved untouched.
+#
+#   security-audit    in-session, our own security method
+#   external-blind    other LLM, breadth sweep
+#   external-edge     other LLM, behaviour tracing
+#   external-intent   other LLM, spec conformance (standard route only)
+#
+# Why external layers matter most HERE: in this workflow the implementation
+# subagent and the review layers run on the same model, in the same session. That
+# is textbook self-review bias, and it lands hardest on spec conformance — a
+# misread requirement is invisible to whoever misread it. The external layers
+# read the change cold, from a different model.
+#
+# They run as subagents, so the review step launches them in the same parallel
+# batch as everything else — wall clock is the slowest single layer, not the sum.
+#
+# The one-shot route has no spec file and no `{diff_file}`; it reviews the current
+# worktree directly. Its entries therefore drop the intent layer and pass no
+# --diff, letting the script build the diff itself (untracked files included,
+# without touching the git index).
+#
+# Shared assets, referenced by all three review overrides:
+#   _bmad/custom/review-prompts/security-review.md
+#   _bmad/custom/review-prompts/external-{blind,edge,intent}.md
+#   _bmad/custom/scripts/external-review.sh
+
+# ---------------------------------------------------------------------------
+# Standard review step
+# ---------------------------------------------------------------------------
+
+[[workflow.review_layers]]
+id = "security-audit"
+name = "Security Auditor"
+instruction = """
+Resolve REPO_ROOT by running `git rev-parse --show-toplevel`, then launch a
+context-free subagent with this prompt, REPO_ROOT replaced by that absolute path:
+
+Read `REPO_ROOT/_bmad/custom/review-prompts/security-review.md` completely and follow it as your review instructions.
+
+Review content: the unified diff at `{diff_file}`. Read that file — it is the content under review. Read surrounding repository files whenever you need context to judge whether an attacker can actually reach a given code path.
+
+Do not invoke any skill, and do not spawn subagents of your own — you are the reviewer. If the instruction file is unreadable, report that exact failure and stop. Return your findings as text in your final message; do not route them through any findings-reporting tool the host may offer.
+
+"""
+
+[[workflow.review_layers]]
+id = "external-blind"
+name = "Blind Hunter (external LLM)"
+instruction = """
+Resolve REPO_ROOT by running `git rev-parse --show-toplevel`, then launch a
+context-free subagent with this prompt, REPO_ROOT replaced by that absolute path
+and `{diff_file}` replaced by its absolute path:
+
+Run exactly this command, in the foreground, with a 1200000 ms timeout — never backgrounded, never detached:
+
+    bash "REPO_ROOT/_bmad/custom/scripts/external-review.sh" --mode blind --diff "{diff_file}"
+
+Return the command's findings unchanged. Do not review the diff yourself, do not add findings of your own, and do not summarise or re-rank. Another model produced these findings; you are the courier, and rewriting them destroys the independence that is the whole point of this layer.
+
+The `EXTERNAL_REVIEW_CLI:` line is provenance, not a finding — state which CLI produced the findings, then give the findings.
+
+Output starting with `EXTERNAL_REVIEW_ERROR`, or a non-zero exit, means the layer failed: report that exact line and stop. `EXTERNAL_REVIEW_EMPTY` and `EXTERNAL_REVIEW_SKIP` mean there was nothing to do — report them as-is; neither is a failure.
+
+Do not invoke any skill, and do not spawn subagents of your own. Return the findings as text in your final message; do not route them through any findings-reporting tool the host may offer.
+
+"""
+
+[[workflow.review_layers]]
+id = "external-edge"
+name = "Edge Case Hunter (external LLM)"
+instruction = """
+Resolve REPO_ROOT by running `git rev-parse --show-toplevel`, then launch a
+context-free subagent with this prompt, REPO_ROOT replaced by that absolute path
+and `{diff_file}` replaced by its absolute path:
+
+Run exactly this command, in the foreground, with a 1200000 ms timeout — never backgrounded, never detached:
+
+    bash "REPO_ROOT/_bmad/custom/scripts/external-review.sh" --mode edge --diff "{diff_file}"
+
+Return the command's findings unchanged. Do not review the diff yourself, do not add findings of your own, and do not summarise or re-rank. Another model produced these findings; you are the courier, and rewriting them destroys the independence that is the whole point of this layer.
+
+The `EXTERNAL_REVIEW_CLI:` line is provenance, not a finding — state which CLI produced the findings, then give the findings.
+
+Output starting with `EXTERNAL_REVIEW_ERROR`, or a non-zero exit, means the layer failed: report that exact line and stop. `EXTERNAL_REVIEW_EMPTY` and `EXTERNAL_REVIEW_SKIP` mean there was nothing to do — report them as-is; neither is a failure.
+
+Do not invoke any skill, and do not spawn subagents of your own. Return the findings as text in your final message; do not route them through any findings-reporting tool the host may offer.
+
+"""
+
+[[workflow.review_layers]]
+id = "external-intent"
+name = "Intent Alignment Auditor (external LLM)"
+when = "Only when a spec file is available for this run."
+instruction = """
+Resolve REPO_ROOT by running `git rev-parse --show-toplevel`, then launch a
+context-free subagent with this prompt, REPO_ROOT replaced by that absolute path
+and `{diff_file}` and `{spec_file}` replaced by their absolute paths:
+
+Run exactly this command, in the foreground, with a 1200000 ms timeout — never backgrounded, never detached:
+
+    bash "REPO_ROOT/_bmad/custom/scripts/external-review.sh" --mode intent --diff "{diff_file}" --intent "{spec_file}"
+
+Return the command's findings unchanged. Do not audit the diff yourself, do not add findings of your own, and do not summarise or re-rank. This session produced the implementation from this same spec, so its reading of the spec is precisely what this layer exists to cross-check. Another model read the spec cold; rewriting its output defeats the layer.
+
+The `EXTERNAL_REVIEW_CLI:` line is provenance, not a finding — state which CLI produced the findings, then give the findings.
+
+Output starting with `EXTERNAL_REVIEW_ERROR`, or a non-zero exit, means the layer failed: report that exact line and stop. `EXTERNAL_REVIEW_EMPTY` and `EXTERNAL_REVIEW_SKIP` mean there was nothing to do — report them as-is; neither is a failure.
+
+Do not invoke any skill, and do not spawn subagents of your own. Return the findings as text in your final message; do not route them through any findings-reporting tool the host may offer.
+
+"""
+
+# ---------------------------------------------------------------------------
+# One-shot route — no {diff_file} and no spec; the worktree is the content
+# ---------------------------------------------------------------------------
+
+[[workflow.oneshot_review_layers]]
+id = "security-audit"
+name = "Security Auditor"
+instruction = """
+Resolve REPO_ROOT by running `git rev-parse --show-toplevel`, then launch a
+context-free subagent with this prompt, REPO_ROOT replaced by that absolute path:
+
+Read `REPO_ROOT/_bmad/custom/review-prompts/security-review.md` completely and follow it as your review instructions.
+
+Review content: the changed files in the current worktree. Run `git status --short --untracked-files=all` and `git diff HEAD` to establish exactly what changed, then inspect those files directly — untracked files included, since they appear in no diff. Read surrounding repository files whenever you need context to judge whether an attacker can actually reach a given code path.
+
+Do not invoke any skill, and do not spawn subagents of your own — you are the reviewer. If the instruction file is unreadable, report that exact failure and stop. Return your findings as text in your final message; do not route them through any findings-reporting tool the host may offer.
+
+"""
+
+[[workflow.oneshot_review_layers]]
+id = "external-blind"
+name = "Blind Hunter (external LLM)"
+instruction = """
+Resolve REPO_ROOT by running `git rev-parse --show-toplevel`, then launch a
+context-free subagent with this prompt, REPO_ROOT replaced by that absolute path:
+
+Run exactly this command, in the foreground, with a 1200000 ms timeout — never backgrounded, never detached:
+
+    bash "REPO_ROOT/_bmad/custom/scripts/external-review.sh" --mode blind
+
+Pass no --diff. Without it the script builds the diff from the current worktree itself and points the reviewer at untracked files as well, without touching the git index.
+
+Return the command's findings unchanged. Do not review the changes yourself, do not add findings of your own, and do not summarise or re-rank. Another model produced these findings; you are the courier, and rewriting them destroys the independence that is the whole point of this layer.
+
+The `EXTERNAL_REVIEW_CLI:` line is provenance, not a finding — state which CLI produced the findings, then give the findings.
+
+Output starting with `EXTERNAL_REVIEW_ERROR`, or a non-zero exit, means the layer failed: report that exact line and stop. `EXTERNAL_REVIEW_EMPTY` and `EXTERNAL_REVIEW_SKIP` mean there was nothing to do — report them as-is; neither is a failure.
+
+Do not invoke any skill, and do not spawn subagents of your own. Return the findings as text in your final message; do not route them through any findings-reporting tool the host may offer.
+
+"""
+
+[[workflow.oneshot_review_layers]]
+id = "external-edge"
+name = "Edge Case Hunter (external LLM)"
+instruction = """
+Resolve REPO_ROOT by running `git rev-parse --show-toplevel`, then launch a
+context-free subagent with this prompt, REPO_ROOT replaced by that absolute path:
+
+Run exactly this command, in the foreground, with a 1200000 ms timeout — never backgrounded, never detached:
+
+    bash "REPO_ROOT/_bmad/custom/scripts/external-review.sh" --mode edge
+
+Pass no --diff. Without it the script builds the diff from the current worktree itself and points the reviewer at untracked files as well, without touching the git index.
+
+Return the command's findings unchanged. Do not review the changes yourself, do not add findings of your own, and do not summarise or re-rank. Another model produced these findings; you are the courier, and rewriting them destroys the independence that is the whole point of this layer.
+
+The `EXTERNAL_REVIEW_CLI:` line is provenance, not a finding — state which CLI produced the findings, then give the findings.
+
+Output starting with `EXTERNAL_REVIEW_ERROR`, or a non-zero exit, means the layer failed: report that exact line and stop. `EXTERNAL_REVIEW_EMPTY` and `EXTERNAL_REVIEW_SKIP` mean there was nothing to do — report them as-is; neither is a failure.
+
+Do not invoke any skill, and do not spawn subagents of your own. Return the findings as text in your final message; do not route them through any findings-reporting tool the host may offer.
+
+"""

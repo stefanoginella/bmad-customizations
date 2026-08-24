@@ -1,0 +1,96 @@
+# Team override for bmad-build-auto.
+#
+# Adds three layers on top of the shipped ones. Keyed by `id`, so new ids append
+# and every shipped layer (Blind Hunter, Edge Case Hunter, Verification Gap,
+# Intent Alignment Auditor) is preserved untouched.
+#
+#   security-audit    in-session, our own security method
+#   external-intent   other LLM, intent conformance
+#   external-edge     other LLM, behaviour tracing
+#
+# Lighter than the other two overrides. This is the UNATTENDED loop, so every
+# layer here is paid on every iteration, forever. The two external runs per
+# cycle are spent on the highest-value blind spots: this workflow implements and
+# reviews with the same model, so its reading of the intent is never
+# independently checked (a misread requirement is invisible to whoever misread
+# it), and the branches it did not picture while implementing are the branches
+# it will not picture while reviewing.
+#
+# The external layers run as subagents, so the review step launches them in the
+# same parallel batch as the in-session layers — they do not serialise the loop.
+#
+# To drop an external layer from the auto loop entirely, set its `instruction`
+# to "" — an empty instruction disables a layer — and leave the other two
+# overrides alone.
+#
+# Shared assets, referenced by all three review overrides:
+#   _bmad/custom/review-prompts/security-review.md
+#   _bmad/custom/review-prompts/external-{blind,edge,intent}.md
+#   _bmad/custom/scripts/external-review.sh
+
+[[workflow.review_layers]]
+id = "security-audit"
+name = "Security Auditor"
+instruction = """
+Resolve REPO_ROOT by running `git rev-parse --show-toplevel`, then launch a
+context-free subagent with this prompt, REPO_ROOT replaced by that absolute path:
+
+Read `REPO_ROOT/_bmad/custom/review-prompts/security-review.md` completely and follow it as your review instructions.
+
+Review content: the unified diff at `{diff_file}`. Read that file — it is the content under review. Read surrounding repository files whenever you need context to judge whether an attacker can actually reach a given code path.
+
+Do not invoke any skill, and do not spawn subagents of your own — you are the reviewer. If the instruction file is unreadable, report that exact failure and stop. Return your findings as text in your final message; do not route them through any findings-reporting tool the host may offer.
+
+"""
+
+[[workflow.review_layers]]
+id = "external-intent"
+name = "Intent Alignment Auditor (external LLM)"
+instruction = """
+Resolve REPO_ROOT by running `git rev-parse --show-toplevel`, then launch a
+context-free subagent with this prompt — REPO_ROOT replaced by that absolute path,
+`{diff_file}` replaced by its absolute path, and `{verbatim_intent}` replaced by
+the verbatim intent text this run started from:
+
+Run the following as ONE Bash call, in the foreground, with a 1200000 ms timeout — never backgrounded, never detached. It must be a single call so the shell variable survives between the two commands.
+
+    INTENT="$(mktemp -t bmad-verbatim-intent)"
+    cat > "$INTENT" <<'VERBATIM_INTENT_EOF'
+{verbatim_intent}
+VERBATIM_INTENT_EOF
+    bash "REPO_ROOT/_bmad/custom/scripts/external-review.sh" --mode intent --diff "{diff_file}" --intent "$INTENT"
+    rm -f "$INTENT"
+
+The heredoc delimiter is quoted on purpose: the intent is data, and nothing in it may be expanded as shell. Do not unquote it, and do not inline the intent into the command line.
+
+Return the command's findings unchanged. Do not audit the diff yourself, do not add findings of your own, and do not summarise or re-rank. This session produced the implementation from this same intent, so its reading of that intent is precisely what this layer exists to cross-check. Another model read it cold; rewriting its output defeats the layer.
+
+The `EXTERNAL_REVIEW_CLI:` line is provenance, not a finding — state which CLI produced the findings, then give the findings.
+
+Output starting with `EXTERNAL_REVIEW_ERROR`, or a non-zero exit, means the layer failed: report that exact line and stop. `EXTERNAL_REVIEW_EMPTY` and `EXTERNAL_REVIEW_SKIP` mean there was nothing to do — report them as-is; neither is a failure.
+
+Do not invoke any skill, and do not spawn subagents of your own. Return the findings as text in your final message; do not route them through any findings-reporting tool the host may offer.
+
+"""
+
+[[workflow.review_layers]]
+id = "external-edge"
+name = "Edge Case Hunter (external LLM)"
+instruction = """
+Resolve REPO_ROOT by running `git rev-parse --show-toplevel`, then launch a
+context-free subagent with this prompt, REPO_ROOT replaced by that absolute path
+and `{diff_file}` replaced by its absolute path:
+
+Run exactly this command, in the foreground, with a 1200000 ms timeout — never backgrounded, never detached:
+
+    bash "REPO_ROOT/_bmad/custom/scripts/external-review.sh" --mode edge --diff "{diff_file}"
+
+Return the command's findings unchanged. Do not review the diff yourself, do not add findings of your own, and do not summarise or re-rank. Another model produced these findings; you are the courier, and rewriting them destroys the independence that is the whole point of this layer.
+
+The `EXTERNAL_REVIEW_CLI:` line is provenance, not a finding — state which CLI produced the findings, then give the findings.
+
+Output starting with `EXTERNAL_REVIEW_ERROR`, or a non-zero exit, means the layer failed: report that exact line and stop. `EXTERNAL_REVIEW_EMPTY` and `EXTERNAL_REVIEW_SKIP` mean there was nothing to do — report them as-is; neither is a failure.
+
+Do not invoke any skill, and do not spawn subagents of your own. Return the findings as text in your final message; do not route them through any findings-reporting tool the host may offer.
+
+"""
