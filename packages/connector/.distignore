@@ -1,0 +1,22 @@
+# Everything the release zip must NOT contain (AD-17: the contents of this
+# folder ARE the plugin folder, so the zip is this folder minus the lines
+# below). `connector.yml` builds the zip on a `plugin-v*` tag — story 9.
+#
+# Nothing here is needed to run the plugin: it has no Composer runtime
+# dependencies and no build step.
+/.ddev
+/.distignore
+/.git
+/.gitattributes
+/.gitignore
+/.phpunit.cache
+/.phpunit.result.cache
+/README.md
+/composer.json
+/composer.lock
+/openapi.yaml
+/phpcs.cache
+/phpcs.xml.dist
+/phpunit.xml.dist
+/tests
+/vendor

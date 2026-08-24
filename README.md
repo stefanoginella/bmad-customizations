@@ -13,7 +13,7 @@ woptimize/
     playground/     throwaway WP "client site" for connector integration tests
   packages/
     design-tokens/  single token source → builds all style artifacts — host Node 24
-    connector/      plugin installed on client sites
+    connector/      the connector plugin for client sites + openapi.yaml, the contract
   infra/
     umami/          compose + env only — deployment, not a codebase
   .github/
@@ -29,14 +29,21 @@ You need **DDEV >= 1.25** with a Docker provider, plus **Node >= 24 on the
 host** (`.nvmrc` says `24`) for the design-token build. Everything else runs in
 the containers.
 
-Each app is its own DDEV project and carries its own README with the
-quickstart:
+Three DDEV projects live in this repo, each with its own README and quickstart:
 
 - [`apps/www/README.md`](apps/www/README.md) — `ddev start` + `ddev www-setup`
 - [`apps/portal/README.md`](apps/portal/README.md) — `ddev start` + `ddev portal-setup`
+- [`packages/connector/README.md`](packages/connector/README.md) — `ddev start`
+  + `ddev composer install`, then `ddev composer test` and `ddev composer lint`.
+  Its own DDEV project runs **PHP 8.1**, the client-site floor, with no
+  database.
 
-Both setup commands build the design tokens first, so there is nothing extra to
-run by hand. To rebuild them on their own:
+`ddev www-setup` and `ddev portal-setup` each build the design tokens as their
+first step, so the two apps need nothing extra by hand. The connector has no
+setup command and no token step — it consumes no tokens, and `ddev composer
+install` is all it needs.
+
+To rebuild the tokens on their own:
 
 ```bash
 npm run tokens:build     # from the repo root
@@ -68,6 +75,13 @@ app folder, while the build reads `packages/` and writes into both apps.
 
 - An app never imports another app's code. Sharing happens through `packages/`
   at build time, or through the connector↔portal contract at runtime.
+- That contract lives in
+  [`packages/connector/openapi.yaml`](packages/connector/openapi.yaml) and
+  covers both directions. Change the file **before** the code, both directions
+  in one PR.
+- The connector runs on client sites, so its floor is PHP 8.1 / WP 6.7 — no PHP
+  8.2+ syntax — while the two apps target PHP 8.4. Every remote failure in the
+  connector degrades to a silent no-op; it must never break a client's site.
 - Each app keeps its own framework's idioms and tooling.
 - Slugs are fixed everywhere: theme `woptimize-theme`, site plugin
   `woptimize-core`, connector `woptimize-connector`.

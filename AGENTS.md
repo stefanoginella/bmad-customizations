@@ -5,9 +5,9 @@
 
 Multi-app monorepo for WOptimize: a WordPress marketing site, a Laravel client
 portal, a connector plugin for client sites, and one design-token source.
-`apps/www`, `apps/portal`, and `packages/design-tokens` have code — the rest of
-the tree is `.gitkeep` placeholders a later story fills. Planning artifacts live
-in `_bmad-output/`.
+`apps/www`, `apps/portal`, `packages/design-tokens`, and `packages/connector`
+have code — the rest of the tree is `.gitkeep` placeholders a later story fills.
+Planning artifacts live in `_bmad-output/`.
 
 ## Policy
 
@@ -44,13 +44,16 @@ in `_bmad-output/`.
 - Design tokens: `packages/design-tokens/` — read
   `packages/design-tokens/README.md` before touching any colour, size, radius,
   duration, or `theme.json` key.
+- Connector plugin and the contract: `packages/connector/` — read
+  `packages/connector/README.md` before touching the plugin, `openapi.yaml`, or
+  anything the portal calls.
 
 ## Running and verifying
 
 - No root `composer.json`, no npm or Composer workspaces, no root dependencies
   and no root lockfile. Every unit installs its own dependencies. The root
   `package.json` holds scripts only: `tokens:build` and `tokens:test`.
-- Both DDEV apps need DDEV >= 1.25 and a Docker provider. Every app command goes
+- Every DDEV app needs DDEV >= 1.25 and a Docker provider. Every app command goes
   through `ddev` — no local PHP, Composer, or WordPress.
 - The one exception is the token build: it needs **host** Node >= 24 (`.nvmrc` =
   `24`) and runs as `npm run tokens:build` from the repo root. It cannot run in
@@ -62,6 +65,12 @@ in `_bmad-output/`.
   Nothing is set up by hand.
 - `apps/portal` setup is `ddev start` then `ddev portal-setup`, run from
   `apps/portal`. Nothing is set up by hand.
+- `packages/connector` is a third DDEV project — `type: php`, PHP 8.1, no
+  database, no docroot. Setup is `ddev start` then `ddev composer install`, run
+  from `packages/connector`. Verify with `ddev composer test` (PHPUnit + Brain
+  Monkey) and `ddev composer lint` (WPCS + PHPCompatibilityWP); both must exit
+  0. It exists only to run the tooling at the client floor — real-WordPress
+  integration tests belong on `apps/playground` (story 6).
 - After deleting `apps/www/wordpress/`, run `ddev restart` before
   `ddev www-setup`. DDEV writes `wordpress/wp-config.php` and `www-setup` does
   not, so `www-setup` stops with an error without the restart.
@@ -90,7 +99,16 @@ in `_bmad-output/`.
   while the own apps target PHP 8.4.
 - The connector↔portal contract lives at `packages/connector/openapi.yaml`.
   Write or change it before any contract code, both directions in the same PR
-  (AD-4).
+  (AD-4). It is written 3.1 but kept 3.0.3-portable — no `nullable`, no type
+  arrays, no `webhooks` — so story 6 can flip one line. `ContractTest` fails
+  when the file and the plugin disagree.
+- In `packages/connector/`: the folder contents **are** the plugin folder
+  (AD-17); `.distignore` lists what the release zip drops. The plugin has no
+  Composer runtime dependencies. Every remote failure is a silent no-op (AD-7):
+  no key → no request; any 4xx → quiet until the next daily slot, never a
+  tighter schedule; 5xx or transport error → one retry 15 min later that never
+  reschedules. The plugin never generates a site key — the portal issues it
+  (AD-16).
 - WordPress PHP — theme, site plugin, connector — follows WordPress Coding
   Standards spacing, not PSR-12.
 - In `apps/www/`: the DDEV project root must stay `apps/www`. Any other root
