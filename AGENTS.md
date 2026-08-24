@@ -1,5 +1,5 @@
 <!-- bmad:context -->
-<!-- Verified 2026-08-24 against eac1483. Managed by bmad-project-context; edits inside this block are replaced on refresh. Keep anything you want preserved outside the markers. -->
+<!-- Verified 2026-08-24 against 581f18b. Managed by bmad-project-context; edits inside this block are replaced on refresh. Keep anything you want preserved outside the markers. -->
 
 ## woptimize.io
 
@@ -22,8 +22,9 @@ in `_bmad-output/`.
 - Never rename the fixed slugs: theme `woptimize-theme`, site plugin
   `woptimize-core`, connector `woptimize-connector`. They are wired into the
   database, the server, and the deploy symlink flip.
-- Never hand-edit or commit the four generated style artifacts (AD-3). Change
-  `packages/design-tokens/tokens/` or `src/base.css`, then rebuild:
+- Never hand-edit the four generated style artifacts (AD-3) — they are
+  gitignored and rebuilt. Change `packages/design-tokens/tokens/` or
+  `src/base.css`, then rebuild:
   `apps/www/themes/woptimize-theme/theme.json`,
   `apps/www/themes/woptimize-theme/assets/css/tokens.css`,
   `apps/portal/resources/css/tokens.theme.css`,
@@ -87,8 +88,9 @@ in `_bmad-output/`.
   WordPress/Laravel border except tokens and the contract (AD-15).
 - Connector code must run on PHP 8.1 and WordPress 6.7 — no PHP 8.2+ syntax —
   while the own apps target PHP 8.4.
-- Change `packages/connector/openapi.yaml` before any contract code, both
-  directions in the same PR (AD-4).
+- The connector↔portal contract lives at `packages/connector/openapi.yaml`.
+  Write or change it before any contract code, both directions in the same PR
+  (AD-4).
 - WordPress PHP — theme, site plugin, connector — follows WordPress Coding
   Standards spacing, not PSR-12.
 - In `apps/www/`: the DDEV project root must stay `apps/www`. Any other root
