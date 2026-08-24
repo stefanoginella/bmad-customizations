@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Forge Report — Woptimize Monorepo</title>
+<style>
+  :root{
+    --paper:#f6f1e7; --ink:#2b2620; --ink-soft:#5c5347; --line:#d8cdb8;
+    --accent:#8c2f1b; --green:#3d6b3a; --card:#fffdf8; --kill:#7a1f1f;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:var(--paper); color:var(--ink);
+    font-family:Georgia,'Times New Roman',serif; line-height:1.55;
+    padding:2.5rem 1.25rem 4rem;
+  }
+  .sheet{max-width:860px;margin:0 auto;background:var(--card);
+    border:1px solid var(--line); border-radius:6px;
+    box-shadow:0 10px 40px rgba(60,45,20,.15); padding:3rem clamp(1.25rem,5vw,3.5rem);}
+  header{display:flex;flex-wrap:wrap;gap:1.5rem;align-items:center;justify-content:space-between;
+    border-bottom:3px double var(--line); padding-bottom:1.75rem; margin-bottom:2rem;}
+  .kicker{font-family:'Courier New',monospace;font-size:.75rem;letter-spacing:.25em;
+    text-transform:uppercase;color:var(--ink-soft);margin-bottom:.4rem}
+  h1{font-size:clamp(1.5rem,4vw,2.1rem);font-weight:700;letter-spacing:.01em}
+  .sub{color:var(--ink-soft);font-style:italic;margin-top:.35rem}
+  h2{font-size:1.05rem;text-transform:uppercase;letter-spacing:.14em;
+    color:var(--accent); margin:2.4rem 0 .9rem; border-bottom:1px solid var(--line); padding-bottom:.35rem}
+  p{margin-bottom:.8rem}
+  ul{list-style:none}
+  li{padding:.45rem 0 .45rem 1.6rem; position:relative; border-bottom:1px dotted var(--line)}
+  li:last-child{border-bottom:none}
+  li::before{position:absolute;left:0;top:.45rem}
+  .locked li::before{content:"🔒"}
+  .killed li::before{content:"☠️"}
+  .risks li::before{content:"⚠️"}
+  .why{display:block;font-size:.86rem;color:var(--ink-soft);font-style:italic;margin-top:.15rem}
+  pre{background:#2b2620;color:#e8e0d0;font-family:'Courier New',monospace;font-size:.82rem;
+    padding:1.1rem 1.3rem;border-radius:6px;overflow-x:auto;line-height:1.5;margin:.8rem 0 1rem}
+  .cast{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:.8rem;margin-top:.5rem}
+  .member{background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:.7rem .85rem}
+  .member b{display:block;font-size:.95rem}
+  .member span{font-size:.8rem;color:var(--ink-soft);font-style:italic}
+  .seal{flex:0 0 auto}
+  .verdict-line{background:var(--paper);border-left:4px solid var(--green);
+    padding:.9rem 1.1rem;border-radius:0 6px 6px 0;margin:1rem 0 0;font-size:1.02rem}
+  footer{margin-top:3rem;padding-top:1.25rem;border-top:3px double var(--line);
+    font-family:'Courier New',monospace;font-size:.75rem;color:var(--ink-soft);
+    display:flex;justify-content:space-between;flex-wrap:wrap;gap:.5rem}
+</style>
+</head>
+<body>
+<div class="sheet">
+  <header>
+    <div>
+      <div class="kicker">BMad Forge · Idea Report</div>
+      <h1>Woptimize: Monorepo vs Separate Repositories</h1>
+      <div class="sub">Session of 2026-08-24 · forged with Stefano</div>
+    </div>
+    <!-- Wax seal -->
+    <svg class="seal" width="150" height="150" viewBox="0 0 150 150" role="img" aria-label="Wax seal stamped HARDENED">
+      <defs>
+        <radialGradient id="wax" cx="42%" cy="38%" r="70%">
+          <stop offset="0%" stop-color="#b5432a"/>
+          <stop offset="55%" stop-color="#8c2f1b"/>
+          <stop offset="100%" stop-color="#5f1d10"/>
+        </radialGradient>
+      </defs>
+      <g transform="rotate(-12 75 75)">
+        <path fill="url(#wax)" d="M75 8c14-3 24 6 35 10s26 6 30 19-5 22-4 34 9 23 1 33-21 8-31 15-17 17-31 15-17-13-28-18-25-4-30-16 4-21 4-33-8-24 0-33 21-7 31-13 12-11 23-13z"/>
+        <circle cx="75" cy="75" r="52" fill="none" stroke="#f3d9c8" stroke-width="2" opacity=".8"/>
+        <circle cx="75" cy="75" r="45" fill="none" stroke="#f3d9c8" stroke-width="1" opacity=".55" stroke-dasharray="3 3"/>
+        <text x="75" y="70" text-anchor="middle" fill="#f9e8da" font-family="Georgia,serif" font-size="15" font-weight="bold" letter-spacing="2">HARDENED</text>
+        <text x="75" y="88" text-anchor="middle" fill="#f3d9c8" font-family="Georgia,serif" font-size="8" letter-spacing="1.5">WOPTIMIZE FORGE</text>
+        <text x="75" y="100" text-anchor="middle" fill="#f3d9c8" font-family="Georgia,serif" font-size="7">2026·08·24</text>
+      </g>
+    </svg>
+  </header>
+
+  <p><strong>The idea:</strong> one repository for the whole Woptimize stack — WordPress marketing site (www), Laravel customer portal (portal), Umami analytics (data), and the connector plugin installed on client sites.</p>
+
+  <div class="verdict-line"><strong>Verdict: the idea survived — one GitHub monorepo, minus Umami.</strong> Both pro arguments held under attack. Every con died once tested against the real toolchain (DDEV, RunCloud, GitHub Actions). Umami was expelled: it is deployed software, not a codebase.</div>
+
+  <h2>Locked decisions</h2>
+  <ul class="locked">
+    <li>Design system is <em>code</em>: one token source builds <code>theme.json</code> + stylesheet for WP and a Tailwind preset + stylesheet for Laravel. One commit updates both apps.
+      <span class="why">Across separate repos this needs private-package publishing or copy-drift. This was pro #1 — it survived.</span></li>
+    <li>Plugin ↔ portal is a tight, two-directional bond: plugin REST endpoints + phone-home; the portal serves the plugin update zips. Integration testing runs locally: portal + throwaway client site, side by side in DDEV.
+      <span class="why">Pro #2 — it survived.</span></li>
+    <li>No license system. Offboarding = uninstall; an orphaned plugin becomes pure no-ops.</li>
+    <li><code>apps/www</code> versions only the custom theme + one site plugin. Full WP install gitignored in <code>wordpress/</code>; relative symlinks from <code>wp-content/</code>. DDEV project root = <code>apps/www</code>, <code>docroot: wordpress</code> — mandatory, or symlinks break in the container.</li>
+    <li>Deploys via GitHub Actions with per-app path filters — no raw RunCloud webhooks on the monorepo.</li>
+    <li>www deploys to <code>releases/&lt;sha&gt;/</code> + symlink flip → instant one-command rollback (code only; content rolls back via backups).</li>
+    <li>Connector releases: tag <code>plugin-v*</code> → Action builds the zip → portal serves it to client sites.</li>
+    <li>Content sync: custom DDEV provider (<code>.ddev/providers/prod.yaml</code>, SSH + rsync) — <code>ddev pull</code> routinely, <code>ddev push</code> only pre-launch.</li>
+  </ul>
+
+  <pre>woptimize/
+├─ apps/
+│  ├─ www/          # DDEV root · docroot: wordpress · git: theme + site plugin only
+│  ├─ portal/       # Laravel + DDEV
+│  └─ playground/   # throwaway WP “client site” for integration tests
+├─ packages/
+│  ├─ design-tokens/  # source of truth → theme.json + Tailwind preset + CSS
+│  └─ connector/      # the plugin installed on client sites
+├─ infra/umami/     # docker-compose + .env.example — notes, not code
+└─ .github/workflows/  # path-filtered: deploy-www · deploy-portal · release-connector</pre>
+
+  <h2>Killed under scrutiny</h2>
+  <ul class="killed">
+    <li>Umami as a repo component — pure deployment, zero custom code; there is nothing to version.</li>
+    <li>Separate repositories — every claimed advantage died: access boundaries (any future hire needs portal <em>and</em> site), deploy simplicity (path-filtered Actions solve it), release tagging (<code>plugin-v*</code> tags solve it).</li>
+    <li>License server for the connector — uninstall-on-offboarding + no-op fallback is simpler and enough.</li>
+  </ul>
+
+  <h2>Weak points that survived — hold these rules</h2>
+  <ul class="risks">
+    <li><strong>Karin's rule (amended):</strong> client sites never update in the same minute. The portal supports the current + previous plugin <em>minor</em> version. Patch releases (x.y.Z) never change the contract — always compatible, so multiple hotfixes can ship in any order. Contract changes require a minor (or major) bump; the plugin ships first, the portal after. The monorepo makes lockstep commits tempting — that ease is the trap.</li>
+    <li><strong>Tomas's rule:</strong> tokens and base styles only, until both apps beg for the same component. The design system must not outgrow the product — envelope, not truck.</li>
+    <li><strong><code>ddev push</code> is a loaded gun:</strong> on a live site it overwrites production content. After launch, content flows one way: production → local.</li>
+  </ul>
+
+  <h2>The cast that pressure-tested it</h2>
+  <div class="cast">
+    <div class="member"><b>🏗️ Winston — System Architect</b><span>Expelled Umami; drew the layout the session converged on.</span></div>
+    <div class="member"><b>🎨 Sally — UX Designer</b><span>Split “visual identity” into code-truth vs Figma-truth.</span></div>
+    <div class="member"><b>💻 Amelia — Senior Engineer</b><span>Forced the three mechanics: who calls whom, who serves updates, how it's tested.</span></div>
+    <div class="member"><b>🎯 Yui — The Craftsman</b><span>Demanded the boring answer for what WP-in-git even means.</span></div>
+    <div class="member"><b>🧾 Priya — future freelance hire</b><span>Raised the access-boundary objection; it died honorably.</span></div>
+    <div class="member"><b>🧵 Tomas — design-system veteran</b><span>Attacked pro #1; lost, but left a scope rule behind.</span></div>
+    <div class="member"><b>🧯 Karin — care-agency owner</b><span>Left the compatibility rule and the ddev-push warning.</span></div>
+    <div class="member"><b>🔧 Henk — RunCloud sysadmin</b><span>Flagged every-push-deploys-everything; fixed with path filters.</span></div>
+    <div class="member"><b>👴 Stefano-2027 — future you</b><span>Approved the Saturday-hotfix experience. Conditionally.</span></div>
+  </div>
+
+  <footer>
+    <span>memlog: _bmad-output/forge/monorepo-vs-multirepo/.memlog.md</span>
+    <span>status: COMPLETE · outcome: HARDENED</span>
+  </footer>
+</div>
+</body>
+</html>

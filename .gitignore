@@ -1,0 +1,9 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Bmad
+_bmad/*
+!_bmad/custom/
+.claude/skills/bmad-*
+.agents/skills/bmad-*
