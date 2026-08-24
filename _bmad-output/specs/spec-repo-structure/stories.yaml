@@ -4,17 +4,23 @@
     Create the tree per repo-layout.md and make apps/www a working DDEV project:
     gitignored WP install, themes/woptimize-theme and plugins/woptimize-core in
     git, relative per-item symlinks (CAP-1, www half).
+  spec_checkpoint: true
+  done_checkpoint: true
 - id: "2"
   title: Portal scaffold
   description: >-
     Scaffold Laravel 13 in apps/portal as its own DDEV project, with Pest and
     Laravel Pint wired (CAP-1, portal half).
+  spec_checkpoint: true
+  done_checkpoint: true
 - id: "3"
   title: Design-token pipeline
   description: >-
     Build the DTCG token source and Style Dictionary config in
     packages/design-tokens, emitting all four AD-3 artifacts via the root
     tokens:build script (CAP-2). One token edit must change both apps' built styles.
+  spec_checkpoint: true
+  done_checkpoint: true
 - id: "4"
   title: Connector plugin and contract file
   description: >-
@@ -22,6 +28,7 @@
     two-direction contract, the woptimize/v1 endpoints, phone-home, and the
     AD-7 no-op discipline (CAP-3, connector half).
   spec_checkpoint: true
+  done_checkpoint: true
   invoke_dev_with: >-
     Client-site floor is PHP 8.1 / WP 6.7: connector code must use no PHP 8.2+
     syntax.
@@ -31,6 +38,8 @@
     Implement the portal's site registry, onboarding with key issuance (AD-16),
     the /api/connector/v1 endpoints, and the portal-to-site calls (CAP-3,
     portal half).
+  spec_checkpoint: true
+  done_checkpoint: true
 - id: "6"
   title: Playground and integration suite
   description: >-
@@ -38,6 +47,7 @@
     integration suite — both venues, Karin's-rule matrix, AD-7 scenarios — as a
     reusable workflow (AD-11, AD-18).
   spec_checkpoint: true
+  done_checkpoint: true
   invoke_dev_with: >-
     Pick the OpenAPI validator here: several PHP validators support only 3.0.x.
     If no maintained 3.1 validator fits, write the contract 3.0.3-compatible
@@ -72,6 +82,7 @@
     portal's connector-releases store; the portal serves update-check and
     zip-download, and the connector updates via the Update URI mechanism
     (CAP-6, AD-17).
+  spec_checkpoint: true
   done_checkpoint: true
 - id: "10"
   title: Content sync provider
@@ -79,11 +90,14 @@
     Build apps/www/.ddev/providers/prod.yaml: routine pull of db + files, and a
     pre-launch-only push behind DDEV's confirm plus a typed production hostname
     (CAP-7).
+  spec_checkpoint: true
+  done_checkpoint: true
 - id: "11"
   title: Umami and the ops floor
   description: >-
     Set up infra/umami (compose, env, pg_dump cron) deployed via umami.yml,
     plus the backup and uptime floor of AD-14 and AD-19.
+  spec_checkpoint: true
   done_checkpoint: true
   invoke_dev_with: >-
     Server changes via RunCloud panel or pipeline only (AD-12); the pg_dump

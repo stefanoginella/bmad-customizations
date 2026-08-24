@@ -27,7 +27,3 @@
 - source_spec: `_bmad-output/specs/spec-repo-structure/stories/3-design-token-pipeline.md`
   summary: Add a lint/format script to `packages/design-tokens` (the portal has Pint, www follows WPCS; the token package enforces nothing).
   evidence: Review noted the 4-space JS/JSON style has no tool behind it; AGENTS.md says each unit keeps its own tooling. Cosmetic today, drift later.
-
-- source_spec: `_bmad-output/specs/spec-repo-structure/stories/4-connector-plugin-and-contract-file.md`
-  summary: AGENTS.md "Running and verifying" still opens with "Both DDEV apps need DDEV >= 1.25" and "Every app command goes through `ddev`" now that `packages/connector` is a third DDEV project; reword through `bmad-project-context` (the lines sit inside the managed block).
-  evidence: Review found the wording drift; the block is owned by the project-context skill, so the build must not patch it.
