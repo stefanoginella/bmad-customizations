@@ -19,6 +19,42 @@ current_app_key() {
   sed -n 's/^APP_KEY=//p' .env | head -n 1 | tr -d "\"' " | tr -d '[:space:]'
 }
 
+# Wait for a host-side path to appear inside the container. Mutagen (macOS,
+# Windows) syncs asynchronously; a flush that has not landed resurfaces later as
+# a misleading build error.
+wait_for_container_path() {
+  local path="$1" attempt
+  for attempt in 1 2 3 4 5; do
+    if ddev exec test -e "${path}" >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 1
+    ddev mutagen sync >/dev/null 2>&1 || true
+  done
+  return 1
+}
+
+# --- 0. Design tokens --------------------------------------------------------
+# Always the first build step (AD-3), and always before Vite compiles app.css.
+# The build reads packages/ and writes into both apps, so it runs on the host,
+# not in this project's container — the container mounts apps/portal only.
+if ! command -v npm >/dev/null 2>&1; then
+  echo "ERROR: npm was not found on the host." >&2
+  echo "       Install Node 24 — see packages/design-tokens/README.md" >&2
+  exit 1
+fi
+
+# Style Dictionary 5 needs a modern Node. An older one dies deep inside the
+# build with an opaque syntax or ESM error, so check the major up front.
+if ! node -e 'process.exit(Number(process.versions.node.split(".")[0]) >= 24 ? 0 : 1)' >/dev/null 2>&1; then
+  echo "ERROR: the host Node is too old for the design-token build (found $(node -v 2>/dev/null || echo 'no node'))." >&2
+  echo "       Install Node 24 — see packages/design-tokens/README.md" >&2
+  exit 1
+fi
+
+echo "==> Building design tokens ..."
+(cd "${APPROOT}/../.." && npm run tokens:build)
+
 # --- 1. PHP dependencies -----------------------------------------------------
 echo "==> Installing Composer dependencies ..."
 ddev composer install
@@ -50,6 +86,20 @@ ddev exec php artisan migrate --force
 # --- 5. Front-end assets -----------------------------------------------------
 echo "==> Installing npm dependencies ..."
 ddev npm install
+
+# The token artifacts were written on the host in section 0. Vite reads them
+# through app.css, so confirm the container really sees them before building —
+# a sync that has not landed would surface as a confusing Vite import error.
+echo "==> Waiting for the token artifacts inside the web container ..."
+ddev mutagen sync >/dev/null 2>&1 || true
+for artifact in resources/css/tokens.theme.css resources/css/tokens.base.css; do
+  if ! wait_for_container_path "/var/www/html/${artifact}"; then
+    echo "ERROR: ${artifact} never appeared inside the web container." >&2
+    echo "       The host -> container sync flush did not land. Check 'ddev mutagen status'," >&2
+    echo "       then run 'ddev restart' and try again." >&2
+    exit 1
+  fi
+done
 
 echo "==> Building assets ..."
 ddev npm run build

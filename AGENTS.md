@@ -5,8 +5,9 @@
 
 Multi-app monorepo for WOptimize: a WordPress marketing site, a Laravel client
 portal, a connector plugin for client sites, and one design-token source.
-`apps/www` and `apps/portal` have code — the rest of the tree is `.gitkeep`
-placeholders a later story fills. Planning artifacts live in `_bmad-output/`.
+`apps/www`, `apps/portal`, and `packages/design-tokens` have code — the rest of
+the tree is `.gitkeep` placeholders a later story fills. Planning artifacts live
+in `_bmad-output/`.
 
 ## Policy
 
@@ -21,6 +22,12 @@ placeholders a later story fills. Planning artifacts live in `_bmad-output/`.
 - Never rename the fixed slugs: theme `woptimize-theme`, site plugin
   `woptimize-core`, connector `woptimize-connector`. They are wired into the
   database, the server, and the deploy symlink flip.
+- Never hand-edit or commit the four generated style artifacts (AD-3). Change
+  `packages/design-tokens/tokens/` or `src/base.css`, then rebuild:
+  `apps/www/themes/woptimize-theme/theme.json`,
+  `apps/www/themes/woptimize-theme/assets/css/tokens.css`,
+  `apps/portal/resources/css/tokens.theme.css`,
+  `apps/portal/resources/css/tokens.base.css`.
 
 ## Where things are
 
@@ -33,13 +40,23 @@ placeholders a later story fills. Planning artifacts live in `_bmad-output/`.
 - WP marketing site: `apps/www/` — read `apps/www/README.md` before working there.
 - Laravel client portal: `apps/portal/` — read `apps/portal/README.md` before
   working there.
+- Design tokens: `packages/design-tokens/` — read
+  `packages/design-tokens/README.md` before touching any colour, size, radius,
+  duration, or `theme.json` key.
 
 ## Running and verifying
 
-- No root `composer.json`, no npm or Composer workspaces. Every unit installs
-  its own dependencies; there is no repo-wide install, build, or test command.
-- Both DDEV apps need DDEV >= 1.25 and a Docker provider. Nothing runs on local
-  PHP, Composer, Node, or WordPress — every command goes through `ddev`.
+- No root `composer.json`, no npm or Composer workspaces, no root dependencies
+  and no root lockfile. Every unit installs its own dependencies. The root
+  `package.json` holds scripts only: `tokens:build` and `tokens:test`.
+- Both DDEV apps need DDEV >= 1.25 and a Docker provider. Every app command goes
+  through `ddev` — no local PHP, Composer, or WordPress.
+- The one exception is the token build: it needs **host** Node >= 24 (`.nvmrc` =
+  `24`) and runs as `npm run tokens:build` from the repo root. It cannot run in
+  either container — each DDEV project mounts only its own app folder, while the
+  build reads `packages/` and writes into both apps. `www-setup` and
+  `portal-setup` run it as their first step and stop with an error when host
+  `npm` is missing.
 - `apps/www` setup is `ddev start` then `ddev www-setup`, run from `apps/www`.
   Nothing is set up by hand.
 - `apps/portal` setup is `ddev start` then `ddev portal-setup`, run from
@@ -53,9 +70,14 @@ placeholders a later story fills. Planning artifacts live in `_bmad-output/`.
   command stops with an error. Never write those keys from a script.
 - The WordPress pin is `WP_VERSION` at the top of
   `apps/www/.ddev/commands/host/www-setup` and nowhere else.
-- TODO — spine AD-3 specifies `npm run tokens:build` from a root
-  `package.json` as the first build step everywhere. Neither exists yet.
-  Verify the real invocation when the token story lands.
+- Token changes: edit `packages/design-tokens/tokens/*.json` (DTCG — `$value`
+  strings carry their own CSS unit, references are `{group.path}`), then
+  `npm run tokens:build` and `npm run tokens:test` from the repo root.
+- `theme.json` has two owners. The theme owns the committed
+  `apps/www/themes/woptimize-theme/theme.base.json`; the token build owns
+  `settings.color.palette`, `settings.typography.fontFamilies`,
+  `settings.typography.fontSizes`, and `settings.spacing.spacingSizes`. Putting
+  one of the four in `theme.base.json` fails the build on purpose.
 
 ## Conventions that differ from defaults
 
@@ -75,5 +97,9 @@ placeholders a later story fills. Planning artifacts live in `_bmad-output/`.
   (`../../../themes/woptimize-theme`). Absolute targets break in the container.
 - In `apps/portal/`: tests are Pest 5, not the skeleton's PHPUnit. Write Pest
   syntax; run `ddev exec php artisan test`.
+- In `packages/design-tokens/`: ESM only (`type: module`), Style Dictionary 5,
+  tests are `node --test`. Custom-property names follow one rule — `--` plus the
+  token path joined by `-`, a whole trailing `size` segment dropped, and
+  `text.*.line-height` becoming `--text-*--line-height`.
 
 <!-- /bmad:context -->

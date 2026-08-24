@@ -2,6 +2,9 @@
 .DS_Store
 Thumbs.db
 
+# Node
+/node_modules/
+
 # Bmad
 _bmad/*
 !_bmad/custom/

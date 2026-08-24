@@ -38,6 +38,27 @@ wait_for_container_path() {
   return 1
 }
 
+# --- 0. Design tokens --------------------------------------------------------
+# Always the first build step (AD-3). The build reads packages/ and writes into
+# both apps, so it runs on the host, not in this project's container — the
+# container mounts apps/www only.
+if ! command -v npm >/dev/null 2>&1; then
+  echo "ERROR: npm was not found on the host." >&2
+  echo "       Install Node 24 — see packages/design-tokens/README.md" >&2
+  exit 1
+fi
+
+# Style Dictionary 5 needs a modern Node. An older one dies deep inside the
+# build with an opaque syntax or ESM error, so check the major up front.
+if ! node -e 'process.exit(Number(process.versions.node.split(".")[0]) >= 24 ? 0 : 1)' >/dev/null 2>&1; then
+  echo "ERROR: the host Node is too old for the design-token build (found $(node -v 2>/dev/null || echo 'no node'))." >&2
+  echo "       Install Node 24 — see packages/design-tokens/README.md" >&2
+  exit 1
+fi
+
+echo "==> Building design tokens ..."
+(cd "${APPROOT}/../.." && npm run tokens:build)
+
 # --- 1. WordPress core -------------------------------------------------------
 CURRENT_WP="$(installed_wp_version)"
 if [ -z "${CURRENT_WP}" ]; then

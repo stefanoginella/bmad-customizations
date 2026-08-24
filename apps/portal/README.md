@@ -7,9 +7,15 @@ Local host: `https://portal.woptimize.ddev.site` · Production: `portal.woptimiz
 - **DDEV >= 1.25** with a working Docker provider (Docker Desktop, OrbStack,
   Colima, Rancher Desktop). Install both by following
   <https://ddev.readthedocs.io/>.
+- **Node >= 24 on the host** (`.nvmrc` at the repo root says `24`) — for the
+  design-token build only. It is the one step that cannot run in this project's
+  container, because the container mounts `apps/portal` alone while the build
+  reads `packages/` and writes into both apps. `portal-setup` stops with an
+  error if `npm` is missing. See
+  [`packages/design-tokens/README.md`](../../packages/design-tokens/README.md).
 
-Nothing else. No local PHP, Composer, or Node is needed — everything runs
-inside the DDEV containers.
+Nothing else. The portal's own PHP, Composer, and Node all run inside the DDEV
+containers.
 
 ## Quickstart
 
@@ -50,6 +56,10 @@ That loses any local edits to `.env` and generates a fresh `APP_KEY`.
 
 ## What `ddev portal-setup` produces
 
+0. Builds the design tokens first, by running `npm run tokens:build` at the repo
+   root — always the first build step, and always before Vite compiles
+   `app.css`. It writes `resources/css/tokens.theme.css` and
+   `resources/css/tokens.base.css`. Missing host `npm` stops the command here.
 1. Installs the Composer dependencies from `composer.lock`.
 2. Stops with a clear error if `.env` is missing — DDEV owns that file (see
    [Starting over](#starting-over)).
@@ -57,7 +67,9 @@ That loses any local edits to `.env` and generates a fresh `APP_KEY`.
    run leaves an existing key alone; rotating it would invalidate every
    encrypted value and session already in the local database.
 4. Runs `php artisan migrate --force` against the MariaDB container.
-5. Runs `npm install` and `npm run build` (Vite + Tailwind 4).
+5. Runs `npm install`, flushes the host to container sync, then `npm run build`
+   (Vite + Tailwind 4). The flush matters: the token artifacts were just written
+   on the host, and Vite reads them through `app.css`.
 
 The command is safe to re-run: it always ends in the same state and exits 0.
 That is not the same as doing nothing. `composer install` and `npm install`
@@ -90,12 +102,40 @@ apps/portal/
   database/          migrations, factories, seeders
   public/            docroot; public/build is gitignored
   resources/         css, js, blade views
+    css/app.css      the portal's own stylesheet             — in git
+    css/tokens.theme.css   Tailwind @theme static block      — GENERATED
+    css/tokens.base.css    shared base styles                — GENERATED
   routes/ storage/ tests/
   vendor/            gitignored
   node_modules/      gitignored
   .env               written by DDEV — gitignored
   .ddev/             DDEV project root; docroot: public         — in git
 ```
+
+## Design tokens
+
+`resources/css/tokens.theme.css` and `resources/css/tokens.base.css` are
+**generated and gitignored — never hand-edit them**. Both are built from
+[`packages/design-tokens`](../../packages/design-tokens/README.md) by
+`npm run tokens:build` at the repo root, and each carries a "GENERATED FILE — DO
+NOT EDIT" notice at the top.
+
+`app.css` — which stays the portal's file — imports them right after Tailwind:
+
+```css
+@import 'tailwindcss';
+@import './tokens.theme.css';   /* @theme static { --color-*, --spacing-*, … } */
+@import './tokens.base.css';    /* @layer base { html, body, a, .wo-button, … } */
+```
+
+`@theme static` puts **every** token on `:root`, not only the ones a utility
+happens to reference, so `tokens.base.css` and your own CSS can read all of
+them. The namespaces are Tailwind's, so `bg-primary`, `text-lg`, `p-4`,
+`rounded-md`, and `ease-out` work straight away.
+
+To change a colour, a size, a radius, or a duration, edit the DTCG source in
+`packages/design-tokens/tokens/` and rebuild. Base styles sit in `@layer base`,
+so Tailwind utilities and the portal's own CSS always win.
 
 ## Rules
 

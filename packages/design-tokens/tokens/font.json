@@ -1,0 +1,33 @@
+{
+    "font": {
+        "sans": {
+            "$type": "fontFamily",
+            "$value": [
+                "system-ui",
+                "-apple-system",
+                "Segoe UI",
+                "Roboto",
+                "Helvetica Neue",
+                "Arial",
+                "sans-serif",
+                "Apple Color Emoji",
+                "Segoe UI Emoji",
+                "Segoe UI Symbol",
+                "Noto Color Emoji"
+            ],
+            "$description": "Default UI and body stack. A system stack until a brand webfont is chosen."
+        },
+        "mono": {
+            "$type": "fontFamily",
+            "$value": [
+                "ui-monospace",
+                "SFMono-Regular",
+                "Menlo",
+                "Consolas",
+                "Liberation Mono",
+                "monospace"
+            ],
+            "$description": "Code, keys, and other fixed-width text."
+        }
+    }
+}

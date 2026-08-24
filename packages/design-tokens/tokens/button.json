@@ -1,0 +1,14 @@
+{
+    "button": {
+        "background": { "$type": "color", "$value": "{color.primary}" },
+        "background-hover": { "$type": "color", "$value": "{color.primary-hover}" },
+        "foreground": { "$type": "color", "$value": "{color.primary-contrast}" },
+        "radius": { "$type": "dimension", "$value": "{radius.md}" },
+        "padding-x": { "$type": "dimension", "$value": "{spacing.4}" },
+        "padding-y": { "$type": "dimension", "$value": "{spacing.2}" },
+        "font-size": { "$type": "dimension", "$value": "{text.base.size}" },
+        "font-weight": { "$type": "fontWeight", "$value": "{font-weight.semibold}" },
+        "transition-duration": { "$type": "duration", "$value": "{duration.base}" },
+        "transition-ease": { "$type": "cubicBezier", "$value": "{ease.out}" }
+    }
+}
