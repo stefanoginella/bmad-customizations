@@ -2,6 +2,7 @@
 
 namespace App\Connector;
 
+use App\Connector\Rules\PublicHost;
 use App\Models\Site;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Response;
@@ -57,6 +58,14 @@ final class ConnectorClient
             return new ConnectorResult(
                 ok: false,
                 error: "{$site->site_url} has not phoned home yet, so the portal has no rest_base to call.",
+            );
+        }
+
+        // Phone-home checked this host, but DNS may have moved since.
+        if (! config('connector.allow_private_rest_base') && ! (new PublicHost)->accepts($site->rest_base)) {
+            return new ConnectorResult(
+                ok: false,
+                error: "{$site->site_url} reports a rest_base that no longer points at a public host.",
             );
         }
 

@@ -219,6 +219,15 @@ it('refuses a rest_base on the unspecified address', function () {
     rejectsPrivateRestBase('http://0.0.0.0/wp-json/woptimize/v1');
 });
 
+// Translated IPv6 ranges that unwrap to an IPv4 address on the way out.
+it('refuses a rest_base on a NAT64 address that wraps loopback', function () {
+    rejectsPrivateRestBase('http://[64:ff9b::7f00:1]/wp-json/woptimize/v1');
+});
+
+it('refuses a rest_base on a 6to4 address that wraps the private network', function () {
+    rejectsPrivateRestBase('http://[2002:a00:5::1]/wp-json/woptimize/v1');
+});
+
 // A host nobody can resolve could become anything later.
 it('refuses a rest_base whose host resolves nowhere', function () {
     rejectsPrivateRestBase('http://nothing.invalid/wp-json/woptimize/v1');

@@ -39,3 +39,7 @@
 - source_spec: `_bmad-output/specs/spec-repo-structure/stories/5-portal-contract-side.md`
   summary: The playground setup (story 6) must make WordPress trust DDEV's mkcert root, or set `sslverify` off for `*.ddev.site` — otherwise the connector's `wp_remote_post` to `portal.woptimize.ddev.site` fails TLS and the phone-home records `transport_error`.
   evidence: The story-5 smoke on www needed a throwaway mu-plugin (`zz-ddev-ca.php`, deleted afterwards) to reach the local portal; WordPress ships its own CA bundle. Story 6's integration suite runs both venues and will hit the same wall.
+
+- source_spec: `_bmad-output/specs/spec-repo-structure/stories/5-portal-contract-side.md`
+  summary: Pin the outbound connector call to the address `PublicHost` checked — resolve once, then connect through `CURLOPT_RESOLVE` (Guzzle `curl` options) with the original Host and SNI — so a DNS answer cannot change between the check and the connect.
+  evidence: Security review flagged the TOCTOU on `PublicHost`. `ConnectorClient::get()` now re-runs the check right before each call, which closes the days-long window between phone-home and `site:status`; the milliseconds between that check and the TCP connect remain open. Full pinning needs cURL options and SNI care the story did not scope.

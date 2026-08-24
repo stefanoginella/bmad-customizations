@@ -146,6 +146,24 @@ it('refuses to call a site that has not phoned home yet', function () {
     Http::assertNothingSent();
 });
 
+// DNS rebinding: the host passed at phone-home, but resolves privately now.
+it('refuses to call a rest_base that no longer resolves to a public host', function () {
+    config()->set('connector.allow_private_rest_base', false);
+
+    $site = reportedSite();
+    $site->forceFill(['rest_base' => 'http://127.0.0.1/wp-json/woptimize/v1'])->save();
+
+    Http::fake();
+
+    $result = app(ConnectorClient::class)->status($site);
+
+    expect($result->ok)->toBeFalse()
+        ->and($result->status)->toBeNull()
+        ->and($result->error)->toContain('no longer points at a public host');
+
+    Http::assertNothingSent();
+});
+
 it('never writes the registry on a pull', function () {
     $site = reportedSite();
     $before = $site->last_seen_at;
