@@ -196,6 +196,19 @@ Do not invoke any skill, and do not spawn subagents of your own. Return the find
 # time.
 
 [workflow]
+# Planning facts — what the TDD split needs from the spec
+#
+# implementation_handoff below turns TDD on when the spec keeps an
+# I/O & Edge-Case Matrix. RED then runs the spec's test command and
+# writes one test per row. These facts make step 02 produce a spec
+# those two agents can execute, instead of one they must interpret.
+persistent_facts = [
+  "A spec that keeps an `## I/O & Edge-Case Matrix` is implemented test-first by two agents: one writes the failing tests from the matrix rows, the second writes the behaviour. The matrix, Verification, Code Map, and Tasks are machine input for those agents, not prose for a human.",
+  "When the spec keeps a matrix, it must also keep `## Verification` with the package's test command as its own Command line, runnable verbatim. A matrix with only lint or build commands blocks the test agent.",
+  "Write each matrix row so one test can assert it: a concrete input or state, and one observable output. A row that cannot fail as a test stops the run.",
+  "Name in the Code Map and Tasks the exact files, symbols, and signatures the change adds, so the test agent and the behaviour agent do not invent two different names for the same thing.",
+]
+
 implementation_handoff = """
 Check whether {spec_file} contains a section titled `## I/O & Edge-Case Matrix` with at least one data row.
 
