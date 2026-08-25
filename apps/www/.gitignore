@@ -1,5 +1,0 @@
-/wordpress/
-
-# Built by `npm run tokens:build` at the repo root — never hand-edited (AD-3).
-/themes/woptimize-theme/theme.json
-/themes/woptimize-theme/assets/css/tokens.css

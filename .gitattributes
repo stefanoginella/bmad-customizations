@@ -1,8 +1,0 @@
-# Let git normalize line endings in the repo; check out per-platform by default.
-* text=auto
-
-# Shell scripts must keep LF everywhere. A CRLF checkout on Windows makes the
-# committed DDEV commands unrunnable.
-apps/*/.ddev/commands/** text eol=lf
-*.sh text eol=lf
-*.bash text eol=lf

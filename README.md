@@ -1,120 +1,204 @@
-# woptimize.io
+# BMad customizations
 
-Monorepo for WOptimize: the marketing site, the client portal, the connector
-plugin, and the shared design tokens.
+[![BMad Method](https://img.shields.io/badge/BMad_Method-6.11.1--next.27-blue)](https://github.com/bmad-code-org/BMAD-METHOD)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green)](./LICENSE)
 
-## Repo map
+<https://github.com/stefanoginella/bmad-customizations>
 
-```
-woptimize/
-  apps/
-    www/            WP marketing site — themes/ + plugins/ in git, WP install gitignored
-    portal/         Laravel client portal
-    playground/     throwaway WP "client site" for connector integration tests
-  packages/
-    design-tokens/  single token source → builds all style artifacts — host Node 24
-    connector/      the connector plugin for client sites + openapi.yaml, the contract
-  infra/
-    umami/          compose + env only — deployment, not a codebase
-  .github/
-    workflows/      CI with path filters — contract-suite.yml today, per-app later
-```
+A portable BMad override pack. It mounts at `_bmad/custom/` in any project and
+adds a **security audit** layer plus **external-LLM review** layers to every
+BMad review workflow, and a **conditional TDD split** to the build workflows.
 
-Empty folders above are placeholders held by `.gitkeep`. A later story fills
-each one.
+Nothing here is project-specific. Every path resolves at run time from
+`git rev-parse --show-toplevel`, so the pack works in any git repository.
 
-## Getting started
+---
 
-You need **DDEV >= 1.25** with a Docker provider, plus **Node >= 24 on the
-host** (`.nvmrc` says `24`) for the design-token build. Everything else runs in
-the containers.
-
-Four DDEV projects live in this repo, each with its own README and quickstart:
-
-- [`apps/www/README.md`](apps/www/README.md) — `ddev start` + `ddev www-setup`
-- [`apps/portal/README.md`](apps/portal/README.md) — `ddev start` + `ddev portal-setup`
-- [`packages/connector/README.md`](packages/connector/README.md) — `ddev start`
-  + `ddev composer install`, then `ddev composer test` and `ddev composer lint`.
-  Its own DDEV project runs **PHP 8.1**, the client-site floor, with no
-  database.
-- [`apps/playground/README.md`](apps/playground/README.md) — `ddev start` +
-  `ddev playground-setup` + `ddev composer install`. A throwaway WordPress 6.7
-  on PHP 8.1 that runs the real connector against the real portal.
-
-`ddev contract-suite`, run from `apps/playground`, is the whole integration
-suite: it starts the portal, plants a fixture site, and holds every live
-response — the connector's and the portal's — against the contract, for the
-current connector and for the previous minor. It is also the single step of
-`.github/workflows/contract-suite.yml`, so CI runs the same command you do.
-
-`ddev www-setup` and `ddev portal-setup` each build the design tokens as their
-first step, so the two apps need nothing extra by hand. The connector has no
-setup command and no token step — it consumes no tokens, and `ddev composer
-install` is all it needs.
-
-To rebuild the tokens on their own:
+## Install
 
 ```bash
-npm run tokens:build     # from the repo root
-npm run tokens:test
+cd /path/to/project
+
+# BMad ignore rule — skip if the project already has it
+printf '_bmad/*\n!_bmad/custom/\n' >> .gitignore
+
+git subtree add --prefix=_bmad/custom \
+  https://github.com/stefanoginella/bmad-customizations.git main --squash
+
+bash _bmad/custom/scripts/doctor.sh
 ```
 
-There is no root `composer.json` and no npm/composer workspaces. The root
-`package.json` holds cross-cutting scripts and nothing else — no dependencies,
-no root lockfile. Every unit manages its own dependencies.
+`git subtree add` needs the prefix to **not exist**. If the project already has
+a `_bmad/custom/`, remove it first:
 
-## Design tokens
+```bash
+git rm -r --cached _bmad/custom && rm -rf _bmad/custom
+git commit -m "chore(bmad): move custom pack to a subtree"
+```
 
-One DTCG source in [`packages/design-tokens`](packages/design-tokens/README.md)
-builds four style artifacts. All four are **generated, gitignored, and never
-hand-edited**. Each carries a "GENERATED FILE — DO NOT EDIT" notice: the three
-CSS files open with it as a comment, and `theme.json` — which cannot hold a
-comment — carries it as its first key, `__generated`.
+Prefer a short name? Register the remote once per project, then use
+`bmad-pack` in place of the URL in every command below:
 
-- `apps/www/themes/woptimize-theme/theme.json` (merged into the committed
-  `theme.base.json`)
-- `apps/www/themes/woptimize-theme/assets/css/tokens.css`
-- `apps/portal/resources/css/tokens.theme.css`
-- `apps/portal/resources/css/tokens.base.css`
+```bash
+git remote add bmad-pack https://github.com/stefanoginella/bmad-customizations.git
+```
 
-The build runs on the host, not in DDEV: each DDEV project mounts only its own
-app folder, while the build reads `packages/` and writes into both apps.
+## Get improvements
 
-That "own app folder only" rule has exactly one exception. `apps/portal`
-mounts `packages/connector/openapi.yaml` **read-only** at
-`/mnt/woptimize/openapi.yaml`, through
-`apps/portal/.ddev/docker-compose.contract.yaml`, so the portal's
-`ContractTest` can parse the contract it serves. Nothing writes through that
-mount.
+```bash
+git subtree pull --prefix=_bmad/custom \
+  https://github.com/stefanoginella/bmad-customizations.git main --squash
 
-## Rules that bind the whole tree
+bash _bmad/custom/scripts/doctor.sh
+```
 
-- An app never imports another app's code. Sharing happens through `packages/`
-  at build time, or through the connector↔portal contract at runtime.
-- That contract lives in
-  [`packages/connector/openapi.yaml`](packages/connector/openapi.yaml) and
-  covers both directions. Change the file **before** the code, both directions
-  in one PR. Both sides guard it with their own `ContractTest`:
-  `packages/connector/tests/ContractTest.php` and
-  `apps/portal/tests/Feature/ContractTest.php`.
-- The portal issues every site key and is the only host of
-  `/api/connector/v1/phone-home`. See
-  [`apps/portal/README.md`](apps/portal/README.md) for the registry and the
-  `site:*` commands.
-- The connector runs on client sites, so its floor is PHP 8.1 / WP 6.7 — no PHP
-  8.2+ syntax — while the two apps target PHP 8.4. Every remote failure in the
-  connector degrades to a silent no-op; it must never break a client's site.
-- Each app keeps its own framework's idioms and tooling.
-- Slugs are fixed everywhere: theme `woptimize-theme`, site plugin
-  `woptimize-core`, connector `woptimize-connector`.
+## Send improvements back
 
-## Planning artifacts
+```bash
+bash _bmad/custom/scripts/doctor.sh   # catches strays BEFORE they leave
 
-Architecture, specs, and stories live in `_bmad-output/`. The architecture
-spine is the tie-breaker for anything cross-cutting.
+git subtree push --prefix=_bmad/custom \
+  https://github.com/stefanoginella/bmad-customizations.git main
+```
 
-`AGENTS.md` (which `CLAUDE.md` includes) carries a **managed block** between the
-`<!-- bmad:context -->` and `<!-- /bmad:context -->` markers. Edits inside those
-markers are overwritten on the next refresh, so change it by running the
-`bmad-project-context` skill after anything that moves a fact it states. Text
-outside the markers is yours to edit by hand.
+---
+
+## Requirements
+
+- **`codex` or `claude` on `PATH`.** `external-review.sh` prefers the CLI that is
+  not hosting the session, and falls back to the other. With neither installed
+  it stops with `EXTERNAL_REVIEW_ERROR` — it does **not** skip quietly.
+  With only **one** installed, the fallback runs the "external" review on the
+  same model that hosts the session. It still passes, but it is no longer
+  independent, which is the entire point of the layer. The doctor warns on this.
+- **`uv`** — the doctor needs it to run the two Python checks.
+- **BMad installed in the target project**, with `_bmad/scripts/` present.
+- No install or build step. `render_skill.py` runs when a skill loads and caches
+  the result under `_bmad/render/`. Drop the files in and the next skill run
+  picks them up.
+
+The reviewer models are **pinned** at the top of `scripts/external-review.sh`.
+That is deliberate: a review that follows whatever model was last selected is
+not reproducible, and two runs of the same diff stop being comparable.
+
+---
+
+## Check the pack: `doctor.sh`
+
+```bash
+bash _bmad/custom/scripts/doctor.sh
+```
+
+Run it after mounting the pack, and after **every BMad upgrade**. It exits 1 on
+a failure, so it drops straight into a pre-push hook or CI. It checks the three
+ways this pack breaks:
+
+**1. Compatibility.** Each `bmad-*.toml` binds to keys declared in that skill's
+shipped `customize.toml` — `[[workflow.review_layers]]`, and so on. The merge
+**never complains**: a key the shipped file no longer declares is added to the
+result and then ignored. A BMad upgrade can therefore disable an override in
+complete silence, and your reviews get quietly weaker with no error anywhere.
+`scripts/check_keys.py` compares the two files and names any orphaned key. For
+skills that have a `workflow.md` render entry, the doctor also runs
+`render_skill.py`, which resolves every token. `bmad-code-review` has no render
+entry, so the key check is the only check it gets.
+
+The pinned version lives in `BMAD_VERSION` — one line, read by the doctor.
+A mismatch against the *installed* BMad is a **warning**, not a failure: the key
+check decides.
+
+The badge at the top of this file repeats that version, so the doctor also
+checks the two against each other. That one **is** a failure — a badge claiming
+a version the pack was never verified against is worse than no badge.
+
+**2. Leaks.** See [The one rule](#the-one-rule).
+
+**3. Reviewer CLI.** See [Requirements](#requirements).
+
+---
+
+## What is in it
+
+| File | What it does |
+| --- | --- |
+| `bmad-code-review.toml` | Adds 4 review layers: `security-audit`, `external-blind`, `external-edge`, `external-intent`. |
+| `bmad-build.toml` | Adds the same 4 layers on both review routes (standard + one-shot), plus the conditional TDD implementation handoff. |
+| `bmad-build-auto.toml` | Adds 3 layers (`security-audit`, `external-intent`, `external-edge`), plus the TDD handoff. Lighter on purpose — this is the unattended loop, so every layer is paid on every iteration. |
+| `review-prompts/security-review.md` | The in-session security review method. |
+| `review-prompts/external-{blind,edge,intent}.md` | The three external review methods. |
+| `scripts/external-review.sh` | Runs one review pass through whichever LLM CLI is **not** hosting the current session. |
+| `config.toml` | Team layer for central config. Empty template — examples only. |
+| `.gitignore` | `*.user.toml` — the personal layer never travels. |
+| `scripts/doctor.sh` | Checks compatibility, leaks, and the reviewer CLI. Run after every BMad upgrade. |
+| `scripts/check_keys.py` | Names any overridden key the shipped skill no longer declares. |
+| `BMAD_VERSION` | The BMad version this pack was verified against. |
+| `MANIFEST` | Every file the pack owns. The doctor's leak guard reads it. |
+
+The prompts and the script are **shared assets**. All three overrides point at
+them. Edit one file and every workflow picks up the change.
+
+### Why the external layers exist
+
+In these workflows the implementation agent and the review agents run on the
+same model, in the same session. That is textbook self-review bias, and it lands
+hardest on spec conformance: a misread requirement is invisible to whoever
+misread it. The external layers read the change cold, from a different model.
+
+They run as subagents, launched in the same parallel batch as the in-session
+layers. Wall clock is the slowest single layer, not the sum.
+
+---
+
+## The one rule
+
+**`git subtree push` sends the whole prefix.** A project-only override left in
+`_bmad/custom/` leaks to every other project on the next pull.
+
+So:
+
+- **Shared** override → `bmad-build.toml` — tracked, travels.
+- **Project-only** override → `bmad-build.user.toml` — gitignored by
+  `.gitignore` in this pack, never travels.
+
+The user layer also wins the merge, so a project can override the shared pack
+without editing it.
+
+`MANIFEST` lists every file the pack owns. `doctor.sh` compares it against what
+is tracked in the prefix and **fails** on anything extra, so a stray is caught
+before the push rather than after the pull.
+
+### Merge order
+
+Skill overrides (`_bmad/scripts/config_utils.py`, `load_customization`):
+
+```
+.claude/skills/<skill>/customize.toml   shipped defaults
+_bmad/custom/<skill>.toml               this pack
+_bmad/custom/<skill>.user.toml          project-only, gitignored   ← wins
+```
+
+Central config (`load_central_config`):
+
+```
+_bmad/config.toml
+_bmad/config.user.toml
+_bmad/custom/config.toml                this pack
+_bmad/custom/config.user.toml           project-only, gitignored   ← wins
+```
+
+BMad has **no** user-home or global customization layer. `_bmad/custom/` is
+resolved from the project root only. That is why this pack exists.
+
+---
+
+## Editing an override
+
+Use the `bmad-customize` skill (menu code `BC`) in a **fresh context window**. It
+scans what is customizable, picks the right scope, writes the TOML, and verifies
+the merge. No hand-authoring needed.
+
+---
+
+## License
+
+MIT — see [LICENSE](./LICENSE).

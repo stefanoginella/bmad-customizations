@@ -1,9 +1,0 @@
-{
-    "link": {
-        "color": { "$type": "color", "$value": "{color.primary}" },
-        "color-hover": { "$type": "color", "$value": "{color.primary-hover}" },
-        "decoration-thickness": { "$type": "dimension", "$value": "0.0625rem" },
-        "underline-offset": { "$type": "dimension", "$value": "0.15em" },
-        "transition-duration": { "$type": "duration", "$value": "{duration.fast}" }
-    }
-}

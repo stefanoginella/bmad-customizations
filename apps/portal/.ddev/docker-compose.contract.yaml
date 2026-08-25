@@ -1,9 +1,0 @@
-# Mounts the connector<->portal contract read-only so `tests/Feature/ContractTest.php`
-# can parse it. Each DDEV project mounts only its own app folder, so the file
-# `packages/connector/openapi.yaml` is otherwise invisible from this container.
-# The path is relative to `.ddev/`; it lives outside the Mutagen tree, so
-# `mutagen.yml` needs no change.
-services:
-  web:
-    volumes:
-      - "../../../packages/connector/openapi.yaml:/mnt/woptimize/openapi.yaml:ro"
