@@ -1,5 +1,7 @@
 # BMad customizations
 
+<https://github.com/stefanoginella/bmad-customizations>
+
 A portable BMad override pack. It mounts at `_bmad/custom/` in any project and
 adds a **security audit** layer plus **external-LLM review** layers to every
 BMad review workflow, and a **conditional TDD split** to the build workflows.
@@ -99,7 +101,7 @@ cd /path/to/project
 printf '_bmad/*\n!_bmad/custom/\n' >> .gitignore
 
 git subtree add --prefix=_bmad/custom \
-  /Volumes/Main/Projects/bmad-customizations main --squash
+  https://github.com/stefanoginella/bmad-customizations.git main --squash
 
 bash _bmad/custom/scripts/doctor.sh
 ```
@@ -112,11 +114,18 @@ git rm -r --cached _bmad/custom && rm -rf _bmad/custom
 git commit -m "chore(bmad): move custom pack to a subtree"
 ```
 
+Prefer a short name? Register the remote once per project, then use
+`bmad-pack` in place of the URL in every command below:
+
+```bash
+git remote add bmad-pack https://github.com/stefanoginella/bmad-customizations.git
+```
+
 ## Get improvements
 
 ```bash
 git subtree pull --prefix=_bmad/custom \
-  /Volumes/Main/Projects/bmad-customizations main --squash
+  https://github.com/stefanoginella/bmad-customizations.git main --squash
 
 bash _bmad/custom/scripts/doctor.sh
 ```
@@ -127,7 +136,7 @@ bash _bmad/custom/scripts/doctor.sh
 bash _bmad/custom/scripts/doctor.sh   # catches strays BEFORE they leave
 
 git subtree push --prefix=_bmad/custom \
-  /Volumes/Main/Projects/bmad-customizations main
+  https://github.com/stefanoginella/bmad-customizations.git main
 ```
 
 ---
