@@ -1,0 +1,280 @@
+# Team override for bmad-build.
+#
+# Adds layers on BOTH review routes:
+#   [[workflow.review_layers]]          the standard review step
+#   [[workflow.oneshot_review_layers]]  the one-shot route
+#
+# Keyed by `id`, so new ids append and every shipped layer is preserved untouched.
+#
+#   security-audit    in-session, our own security method
+#   external-blind    other LLM, breadth sweep
+#   external-edge     other LLM, behaviour tracing
+#   external-intent   other LLM, spec conformance (standard route only)
+#
+# Why external layers matter most HERE: in this workflow the implementation
+# subagent and the review layers run on the same model, in the same session. That
+# is textbook self-review bias, and it lands hardest on spec conformance — a
+# misread requirement is invisible to whoever misread it. The external layers
+# read the change cold, from a different model.
+#
+# They run as subagents, so the review step launches them in the same parallel
+# batch as everything else — wall clock is the slowest single layer, not the sum.
+#
+# The one-shot route has no spec file and no `{diff_file}`; it reviews the current
+# worktree directly. Its entries therefore drop the intent layer and pass no
+# --diff, letting the script build the diff itself (untracked files included,
+# without touching the git index).
+#
+# Shared assets, referenced by all three review overrides:
+#   _bmad/custom/review-prompts/security-review.md
+#   _bmad/custom/review-prompts/external-{blind,edge,intent}.md
+#   _bmad/custom/scripts/external-review.sh
+
+# ---------------------------------------------------------------------------
+# Standard review step
+# ---------------------------------------------------------------------------
+
+[[workflow.review_layers]]
+id = "security-audit"
+name = "Security Auditor"
+instruction = """
+Resolve REPO_ROOT by running `git rev-parse --show-toplevel`, then launch a
+context-free subagent with this prompt, REPO_ROOT replaced by that absolute path:
+
+Read `REPO_ROOT/_bmad/custom/review-prompts/security-review.md` completely and follow it as your review instructions.
+
+Review content: the unified diff at `{diff_file}`. Read that file — it is the content under review. Read surrounding repository files whenever you need context to judge whether an attacker can actually reach a given code path.
+
+Do not invoke any skill, and do not spawn subagents of your own — you are the reviewer. If the instruction file is unreadable, report that exact failure and stop. Return your findings as text in your final message; do not route them through any findings-reporting tool the host may offer.
+
+"""
+
+[[workflow.review_layers]]
+id = "external-blind"
+name = "Blind Hunter (external LLM)"
+instruction = """
+Resolve REPO_ROOT by running `git rev-parse --show-toplevel`, then launch a
+context-free subagent with this prompt, REPO_ROOT replaced by that absolute path
+and `{diff_file}` replaced by its absolute path:
+
+Run exactly this command, in the foreground, with a 1200000 ms timeout — never backgrounded, never detached:
+
+    bash "REPO_ROOT/_bmad/custom/scripts/external-review.sh" --mode blind --diff "{diff_file}"
+
+Return the command's findings unchanged. Do not review the diff yourself, do not add findings of your own, and do not summarise or re-rank. Another model produced these findings; you are the courier, and rewriting them destroys the independence that is the whole point of this layer.
+
+The `EXTERNAL_REVIEW_CLI:` line is provenance, not a finding — state which CLI produced the findings, then give the findings.
+
+Output starting with `EXTERNAL_REVIEW_ERROR`, or a non-zero exit, means the layer failed: report that exact line and stop. `EXTERNAL_REVIEW_EMPTY` and `EXTERNAL_REVIEW_SKIP` mean there was nothing to do — report them as-is; neither is a failure.
+
+Do not invoke any skill, and do not spawn subagents of your own. Return the findings as text in your final message; do not route them through any findings-reporting tool the host may offer.
+
+"""
+
+[[workflow.review_layers]]
+id = "external-edge"
+name = "Edge Case Hunter (external LLM)"
+instruction = """
+Resolve REPO_ROOT by running `git rev-parse --show-toplevel`, then launch a
+context-free subagent with this prompt, REPO_ROOT replaced by that absolute path
+and `{diff_file}` replaced by its absolute path:
+
+Run exactly this command, in the foreground, with a 1200000 ms timeout — never backgrounded, never detached:
+
+    bash "REPO_ROOT/_bmad/custom/scripts/external-review.sh" --mode edge --diff "{diff_file}"
+
+Return the command's findings unchanged. Do not review the diff yourself, do not add findings of your own, and do not summarise or re-rank. Another model produced these findings; you are the courier, and rewriting them destroys the independence that is the whole point of this layer.
+
+The `EXTERNAL_REVIEW_CLI:` line is provenance, not a finding — state which CLI produced the findings, then give the findings.
+
+Output starting with `EXTERNAL_REVIEW_ERROR`, or a non-zero exit, means the layer failed: report that exact line and stop. `EXTERNAL_REVIEW_EMPTY` and `EXTERNAL_REVIEW_SKIP` mean there was nothing to do — report them as-is; neither is a failure.
+
+Do not invoke any skill, and do not spawn subagents of your own. Return the findings as text in your final message; do not route them through any findings-reporting tool the host may offer.
+
+"""
+
+[[workflow.review_layers]]
+id = "external-intent"
+name = "Intent Alignment Auditor (external LLM)"
+when = "Only when a spec file is available for this run."
+instruction = """
+Resolve REPO_ROOT by running `git rev-parse --show-toplevel`, then launch a
+context-free subagent with this prompt, REPO_ROOT replaced by that absolute path
+and `{diff_file}` and `{spec_file}` replaced by their absolute paths:
+
+Run exactly this command, in the foreground, with a 1200000 ms timeout — never backgrounded, never detached:
+
+    bash "REPO_ROOT/_bmad/custom/scripts/external-review.sh" --mode intent --diff "{diff_file}" --intent "{spec_file}"
+
+Return the command's findings unchanged. Do not audit the diff yourself, do not add findings of your own, and do not summarise or re-rank. This session produced the implementation from this same spec, so its reading of the spec is precisely what this layer exists to cross-check. Another model read the spec cold; rewriting its output defeats the layer.
+
+The `EXTERNAL_REVIEW_CLI:` line is provenance, not a finding — state which CLI produced the findings, then give the findings.
+
+Output starting with `EXTERNAL_REVIEW_ERROR`, or a non-zero exit, means the layer failed: report that exact line and stop. `EXTERNAL_REVIEW_EMPTY` and `EXTERNAL_REVIEW_SKIP` mean there was nothing to do — report them as-is; neither is a failure.
+
+Do not invoke any skill, and do not spawn subagents of your own. Return the findings as text in your final message; do not route them through any findings-reporting tool the host may offer.
+
+"""
+
+# ---------------------------------------------------------------------------
+# One-shot route — no {diff_file} and no spec; the worktree is the content
+# ---------------------------------------------------------------------------
+
+[[workflow.oneshot_review_layers]]
+id = "security-audit"
+name = "Security Auditor"
+instruction = """
+Resolve REPO_ROOT by running `git rev-parse --show-toplevel`, then launch a
+context-free subagent with this prompt, REPO_ROOT replaced by that absolute path:
+
+Read `REPO_ROOT/_bmad/custom/review-prompts/security-review.md` completely and follow it as your review instructions.
+
+Review content: the changed files in the current worktree. Run `git status --short --untracked-files=all` and `git diff HEAD` to establish exactly what changed, then inspect those files directly — untracked files included, since they appear in no diff. Read surrounding repository files whenever you need context to judge whether an attacker can actually reach a given code path.
+
+Do not invoke any skill, and do not spawn subagents of your own — you are the reviewer. If the instruction file is unreadable, report that exact failure and stop. Return your findings as text in your final message; do not route them through any findings-reporting tool the host may offer.
+
+"""
+
+[[workflow.oneshot_review_layers]]
+id = "external-blind"
+name = "Blind Hunter (external LLM)"
+instruction = """
+Resolve REPO_ROOT by running `git rev-parse --show-toplevel`, then launch a
+context-free subagent with this prompt, REPO_ROOT replaced by that absolute path:
+
+Run exactly this command, in the foreground, with a 1200000 ms timeout — never backgrounded, never detached:
+
+    bash "REPO_ROOT/_bmad/custom/scripts/external-review.sh" --mode blind
+
+Pass no --diff. Without it the script builds the diff from the current worktree itself and points the reviewer at untracked files as well, without touching the git index.
+
+Return the command's findings unchanged. Do not review the changes yourself, do not add findings of your own, and do not summarise or re-rank. Another model produced these findings; you are the courier, and rewriting them destroys the independence that is the whole point of this layer.
+
+The `EXTERNAL_REVIEW_CLI:` line is provenance, not a finding — state which CLI produced the findings, then give the findings.
+
+Output starting with `EXTERNAL_REVIEW_ERROR`, or a non-zero exit, means the layer failed: report that exact line and stop. `EXTERNAL_REVIEW_EMPTY` and `EXTERNAL_REVIEW_SKIP` mean there was nothing to do — report them as-is; neither is a failure.
+
+Do not invoke any skill, and do not spawn subagents of your own. Return the findings as text in your final message; do not route them through any findings-reporting tool the host may offer.
+
+"""
+
+[[workflow.oneshot_review_layers]]
+id = "external-edge"
+name = "Edge Case Hunter (external LLM)"
+instruction = """
+Resolve REPO_ROOT by running `git rev-parse --show-toplevel`, then launch a
+context-free subagent with this prompt, REPO_ROOT replaced by that absolute path:
+
+Run exactly this command, in the foreground, with a 1200000 ms timeout — never backgrounded, never detached:
+
+    bash "REPO_ROOT/_bmad/custom/scripts/external-review.sh" --mode edge
+
+Pass no --diff. Without it the script builds the diff from the current worktree itself and points the reviewer at untracked files as well, without touching the git index.
+
+Return the command's findings unchanged. Do not review the changes yourself, do not add findings of your own, and do not summarise or re-rank. Another model produced these findings; you are the courier, and rewriting them destroys the independence that is the whole point of this layer.
+
+The `EXTERNAL_REVIEW_CLI:` line is provenance, not a finding — state which CLI produced the findings, then give the findings.
+
+Output starting with `EXTERNAL_REVIEW_ERROR`, or a non-zero exit, means the layer failed: report that exact line and stop. `EXTERNAL_REVIEW_EMPTY` and `EXTERNAL_REVIEW_SKIP` mean there was nothing to do — report them as-is; neither is a failure.
+
+Do not invoke any skill, and do not spawn subagents of your own. Return the findings as text in your final message; do not route them through any findings-reporting tool the host may offer.
+
+"""
+
+# ---------------------------------------------------------------------------
+# Implementation handoff — conditional TDD, red and green split across agents
+# ---------------------------------------------------------------------------
+#
+# A spec with an I/O & Edge-Case Matrix is built test-first by two agents:
+#   RED    writes the tests and the stubs, never the behaviour
+#   GREEN  writes the behaviour, never the tests
+# The agent that writes the tests never sees the code, so it cannot bend the
+# tests to fit the code — the same independence argument as the external
+# review layers above. A spec without a matrix is built normally by one agent.
+# The planner decides at step 02 by keeping or deleting the matrix; the
+# handoff only reads the outcome, so no judgement call happens at implement
+# time.
+
+[workflow]
+# Planning facts — what the TDD split needs from the spec
+#
+# implementation_handoff below turns TDD on when the spec keeps an
+# I/O & Edge-Case Matrix. RED then runs the spec's test command and
+# writes one test per row. These facts make step 02 produce a spec
+# those two agents can execute, instead of one they must interpret.
+persistent_facts = [
+  "A spec that keeps an `## I/O & Edge-Case Matrix` is implemented test-first by two agents: one writes the failing tests from the matrix rows, the second writes the behaviour. The matrix, Verification, Code Map, and Tasks are machine input for those agents, not prose for a human.",
+  "When the spec keeps a matrix, it must also keep `## Verification` with the package's test command as its own Command line, runnable verbatim. A matrix with only lint or build commands blocks the test agent.",
+  "Write each matrix row so one test can assert it: a concrete input or state, and one observable output. A row that cannot fail as a test stops the run.",
+  "Name in the Code Map and Tasks the exact files, symbols, and signatures the change adds, so the test agent and the behaviour agent do not invent two different names for the same thing.",
+]
+
+implementation_handoff = """
+Check whether {spec_file} contains a section titled `## I/O & Edge-Case Matrix` with at least one data row.
+
+**If it does not**, launch one subagent with no prior conversation context, with this prompt:
+
+> Read {spec_file} fully and implement it — the spec is the sole source of truth. Load every file listed in its frontmatter `context:` before you start.
+>
+> Run the commands in the spec's `## Verification` section (or perform its manual checks). Do not skip, disable, or filter out tests.
+>
+> When done, report what you changed, how you verified it, and anything left incomplete or risky.
+
+**If it does**, run the two agents below one after the other. Wait for RED to return before launching GREEN. If RED reports that a test could not be made to fail, or that a matrix row is ambiguous, stop and treat it as a matrix ambiguity — do not launch GREEN.
+
+RED — launch a subagent with no prior conversation context, with this prompt:
+
+> Read {spec_file} fully. The spec is the sole source of truth. Load every file listed in its frontmatter `context:` before you start.
+>
+> You write tests, not behaviour. For every row of the `## I/O & Edge-Case Matrix`, write one test that asserts that row's Expected Output / Behavior and, when it is not N/A, its Error Handling. Use the file paths, names, and signatures in the spec's Code Map and Tasks so a second agent can implement against your tests without renaming anything. Follow the test framework and conventions already used in that package.
+>
+> Where a symbol the tests need does not exist yet, create the smallest stub that lets the test compile and run — a function or method that returns null or throws a not-implemented error. Never write real behaviour in a stub.
+>
+> Run the test command from the spec's `## Verification` section. Every new test must FAIL, and every pre-existing test must still PASS. If a new test passes before any behaviour exists, the test is wrong or the row is already covered — fix the test, or if the matrix row itself is ambiguous, stop and report it. Never proceed on a test that has not failed.
+>
+> Do not skip, disable, or filter out tests. Do not implement behaviour beyond stubs.
+>
+> When done, report: each matrix row with the test that covers it, the exact command you ran, the count of new failing tests and pre-existing passing tests, and anything ambiguous.
+
+GREEN — launch a subagent with no prior conversation context, with this prompt:
+
+> Read {spec_file} fully and implement it — the spec is the sole source of truth. Load every file listed in its frontmatter `context:` before you start.
+>
+> A previous agent has already written failing tests for every row of the `## I/O & Edge-Case Matrix`, plus stubs. Run the test command from the spec's `## Verification` section first and confirm those tests fail.
+>
+> Make them pass, one test at a time: write the smallest behaviour change that turns the next test green, run the suite, continue. You may not edit, delete, skip, disable, or filter any test file. If you believe a test is wrong, stop and report the test and the matrix row — do not change it and do not work around it.
+>
+> Then implement any remaining tasks in `## Tasks & Acceptance` that no matrix row covers.
+>
+> When the whole suite is green, refactor the code you touched — remove duplication, dead code, and unclear names — and keep the suite green. Then run every command in `## Verification`.
+>
+> When done, report what you changed, how you verified it, which tests you saw go from red to green, and anything left incomplete or risky.
+"""
+
+# ---------------------------------------------------------------------------
+# Structure lens — the refactor half of red > green > refactor
+# ---------------------------------------------------------------------------
+#
+# The GREEN agent does a first refactor with its own eyes. This layer gives the
+# second pair: an independent reviewer that asks only "is this clean and
+# simple?", not "is this wrong?". Its findings go back to the implementation
+# subagent through the normal step-04 fix cycle. Standard route only — the
+# one-shot route has no TDD run to refactor after.
+
+[[workflow.review_layers]]
+id = "structure"
+name = "Structure Reviewer"
+instruction = """
+Launch a context-free subagent with this prompt:
+
+You are a structure reviewer. You judge shape, not correctness — other reviewers own bugs, edge cases, and security. Do not report those.
+
+Review content: the unified diff at `{diff_file}`. Read that file — it is the content under review. Read surrounding repository files whenever you need context to judge whether a change fits the module it lands in.
+
+Look for: duplicated logic that should be one function; dead code, unused parameters, and leftover stubs or scaffolding from a test-first run; names that describe the implementation instead of the intent; functions that do two things; logic placed in the wrong layer or file for this repository's conventions; abstractions introduced for one caller; test code that repeats setup a fixture or helper should own. Prefer findings that make the code smaller or clearer without changing behaviour. Never propose a change that would require editing a test's expectation.
+
+Output a Markdown list of findings only — each with the file path, what to change, and why it is simpler. No severity, priority, or ranking. If the diff is empty, stop and say so. If you have zero findings, say so plainly — do not invent any.
+
+Do not invoke any skill, and do not spawn subagents of your own — you are the reviewer. Return your findings as text in your final message; do not route them through any findings-reporting tool the host may offer.
+
+"""
