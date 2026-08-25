@@ -7,8 +7,8 @@ paradigm: 'multi-app monorepo — build-time sharing, runtime independence'
 scope: 'The whole WOptimize system: www (WP), portal (Laravel), connector plugin, design tokens, playground, umami infra, CI/deploy'
 status: final
 created: '2026-08-24'
-updated: '2026-08-24'
-binds: [CAP-1, CAP-2, CAP-3, CAP-4, CAP-5, CAP-6, CAP-7]
+updated: '2026-08-25'
+binds: [CAP-1, CAP-2, CAP-3, CAP-4, CAP-5, CAP-6, CAP-7, CAP-8]
 sources:
   - ../../specs/spec-repo-structure/SPEC.md
   - ../../specs/spec-repo-structure/repo-layout.md
@@ -100,7 +100,7 @@ graph LR
 - **Prevents:** two deploy mental models in one repo; a portal with no rollback; a www flip mechanism invented per-story; theme/plugin slugs chosen twice (which the CAP-7 DB sync then breaks).
 - **Rule:** Both apps deploy as immutable `releases/<sha>` + a symlink flip; rollback = flip back, code only. Deploys trigger only via per-app path filters — no raw RunCloud webhooks.
   - **www:** a release contains `themes/`, `plugins/`, and the built token artifacts. The flip happens **inside `wp-content/`**: `wp-content/themes/woptimize-theme` and `wp-content/plugins/woptimize-core` are symlinks repointed to the new `releases/<sha>/`. Slugs are fixed everywhere (local symlinks, server, DB): theme `woptimize-theme`, site plugin `woptimize-core`. A future child theme adds its own folder under `themes/` and its own symlink — same pattern. Persistent and never in a release: `uploads/`, WP core (managed via panel per AD-12).
-  - **portal:** CI builds (composer + `tokens:build` + assets); `.env` and `storage/` live in `shared/`, symlinked per release; `migrate --force` runs before the flip; the RunCloud web root points at `current/public`.
+  - **portal:** CI builds (composer + `tokens:build` + assets); `.env` and `storage/` live in `shared/`, symlinked per release; `migrate --force` runs before the flip; the RunCloud web root points at `current/public`. One release serves both the portal and the admin hostname; the `current` flip moves both at once, so rollback is still one command.
 
 ### AD-10 — Expand/contract migrations
 
@@ -163,14 +163,20 @@ graph LR
 
 - **Binds:** operations, all deployed surfaces
 - **Prevents:** a dead portal, failed deploy, or silent client site that nobody notices.
-- **Rule:** Uptime: WP Umbrella watches www; one external uptime check watches the portal and umami. Errors: Laravel logs at `shared/storage/logs`, WP debug log at a fixed path — both inside RunCloud backup scope. Deploy failures: GitHub Actions failure notifications. Client-site health: the registry's `last-seen` (AD-6) is the signal — a stale row means a site stopped phoning home. No further tooling until this floor proves too small.
+- **Rule:** Uptime: WP Umbrella watches www; external uptime checks watch the portal host, the admin host, and umami — the admin host is checked separately because domain routing can fail alone (a wrong `ADMIN_DOMAIN` leaves the portal healthy and the admin dead). Errors: Laravel logs at `shared/storage/logs`, WP debug log at a fixed path — both inside RunCloud backup scope. Deploy failures: GitHub Actions failure notifications. Client-site health: the registry's `last-seen` (AD-6) is the signal — a stale row means a site stopped phoning home. No further tooling until this floor proves too small.
+
+### AD-20 — Two surfaces, one app
+
+- **Binds:** CAP-1, CAP-8, `apps/portal`, AD-2, AD-6, AD-9
+- **Prevents:** a second Laravel app that cannot read the portal database; admin routes answering on the client hostname; two deploys for one codebase; a second writer for a fact the portal already owns; a client account escalating into admin authority.
+- **Rule:** The admin dashboard is a **surface** of `apps/portal`, not an app. One codebase, one database, one release, one deploy job, one rollback. Routes split by domain — client routes on the portal host, admin routes on the admin host, in separate route files; no route is registered on both. The admin surface authenticates against its **own guard and its own table** (`admin_users`). No client account can hold admin authority — there is no role on `users` that grants it, and a client session carries none on the admin host. Every admin route sits behind that guard; an unauthenticated request reaches the admin login and nothing else. The admin domain is config (`ADMIN_DOMAIN`) and **must never resolve to null** — a null domain matches every host. Admin writes reuse the portal's own registry code (AD-6); the admin never opens a second write path. No new CI workflow, no new secret prefix — `PORTAL_*` covers both surfaces.
 
 ## Consistency Conventions
 
 | Concern | Convention |
 | --- | --- |
 | CI workflows | One workflow per **deployable surface**: `www.yml`, `portal.yml`, `connector.yml`, `umami.yml`. `design-tokens` has none — it rides inside the app workflows. |
-| Hostnames | www: `www.woptimize.io` (local `woptimize.ddev.site`); portal: `portal.woptimize.io` (local `portal.woptimize.ddev.site`); umami: `data.woptimize.io`. Playground is local-only (`playground.ddev.site`) — it plays a client site, so it stays outside the woptimize namespace. |
+| Hostnames | www: `www.woptimize.io` (local `woptimize.ddev.site`); portal: `portal.woptimize.io` (local `portal.woptimize.ddev.site`); admin: `admin.woptimize.io` (local `admin.woptimize.ddev.site`, via `additional_hostnames` in the portal's DDEV config) — the same app on a second domain, never a second app (AD-20); umami: `data.woptimize.io`. Playground is local-only (`playground.ddev.site`) — it plays a client site, so it stays outside the woptimize namespace. |
 | CI path filters | Each workflow triggers on its own path **plus every `packages/` path it consumes**: `www.yml` + `portal.yml` also on `packages/design-tokens/**`; `connector.yml` on `packages/connector/**` + `apps/portal/**`; `umami.yml` on `infra/umami/**`. |
 | Secrets naming | Repo-level, app-prefixed: `<APP>_SSH_HOST`, `<APP>_SSH_USER`, `<APP>_SSH_KEY`, `<APP>_DEPLOY_PATH` |
 | Token format | DTCG `$value`/`$type` JSON; artifact paths and filenames are fixed in AD-3, never by consumers |
@@ -216,7 +222,8 @@ woptimize/
                           #   wp-content/plugins/woptimize-core -> ../../../plugins/woptimize-core
       .ddev/              # DDEV project root; docroot: wordpress
                           #   providers/prod.yaml = content sync: pull routinely, push pre-launch only, double-confirmed (CAP-7)
-    portal/               # Laravel 13 client portal; own .ddev; tokens.theme.css + tokens.base.css BUILT into resources/css
+    portal/               # Laravel 13 client portal + admin dashboard — two hostnames, one app (AD-20)
+                          #   own .ddev; tokens.theme.css + tokens.base.css BUILT into resources/css
     playground/           # throwaway WP client site; own .ddev; state built by `ddev playground-setup` (AD-18)
   packages/
     design-tokens/        # DTCG source + Style Dictionary config; built via root `npm run tokens:build`
@@ -261,11 +268,14 @@ graph TB
 | CAP-5 www releases + rollback | www deploy job | AD-9, AD-14 |
 | CAP-6 connector releases | `connector.yml`, portal update endpoints | AD-17, AD-8, AD-11 |
 | CAP-7 content sync | `apps/www/.ddev/providers/prod.yaml` | content-sync convention (pull routine, push pre-launch double-confirmed, one-way after launch) |
+| CAP-8 admin surface | `apps/portal` (admin routes) | AD-20, AD-2, AD-6, AD-9 |
 
 ## Deferred
 
 - **Staging environment** — none for now. Revisit: the first migration that scares you, or when portal client-data risk grows.
 - **Portal internal architecture** (layering, modules, queues) — feature-altitude decisions; a lower spine when portal features are specced.
+- **Admin feature scope** — plans, billing, client tracking, impersonation. The 2026-08-25 course correction fixes the surface only. A later spec defines what the admin does.
+- **Admin UI tool** — Filament versus plain Blade + tokens. Story 12 picks, after verifying Filament's Laravel 13 support. The spine stays tool-neutral.
 - **Shared UI components** — only when both apps need the same component (Tomas's rule, spec non-goal).
 - **OpenAPI validator library** — the build story picks one that supports the pinned spec version. Caution: several popular PHP validators (e.g. `league/openapi-psr7-validator`) support only 3.0.x; if no maintained 3.1 validator fits, write the contract 3.0.3-compatible instead — a build-story call.
 - **Key-rotation delivery automation** — manual re-paste in v1 (AD-16); automate only when rotation becomes routine.

@@ -102,3 +102,24 @@
   invoke_dev_with: >-
     Server changes via RunCloud panel or pipeline only (AD-12); the pg_dump
     cron must write into a RunCloud-backed folder.
+- id: "12"
+  title: Admin dashboard scaffold
+  description: >-
+    Add the admin surface to apps/portal — one app, two hostnames (CAP-8,
+    AD-20): admin.woptimize.ddev.site locally via additional_hostnames,
+    admin.woptimize.io in production as an alias domain on the portal RunCloud
+    web app, domain-split route files, an ADMIN_DOMAIN config with a non-null
+    fallback, and admin identity in its own admin_users table with its own
+    Laravel guard — never a role flag on users. Scaffold only — no plans,
+    billing, or client tracking. Pick the admin UI tool here (check Filament's
+    Laravel 13 support; plain Blade + tokens is the fallback).
+  depends_on: ["8"]
+  spec_checkpoint: true
+  done_checkpoint: true
+  invoke_dev_with: >-
+    Route::domain(null) matches every host — ADMIN_DOMAIN must never resolve to
+    null, or admin routes answer on the client portal. Verify three ways: an
+    admin route 404s on the portal host; a client session carries no authority
+    on the admin host; and the admin_users migration is additive, so a symlink
+    rollback needs no DB restore (AD-10). The production alias domain and its
+    SSL go through the RunCloud panel, never ad-hoc SSH (AD-12).

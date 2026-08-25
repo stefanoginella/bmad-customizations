@@ -40,6 +40,10 @@ A pain to pre-empt: WOptimize is one product across several surfaces — a WP ma
   - **intent:** Production content syncs to local dev: pull db + files routinely; push exists for pre-launch only, behind a double confirmation.
   - **success:** One DDEV command refreshes local db + files from production.
 
+- **CAP-8**
+  - **intent:** The portal serves an internal admin dashboard on `admin.woptimize.io` — the same Laravel app and the same database as the client portal, split by domain and gated by its own guard.
+  - **success:** A client account cannot authenticate on the admin host at all — no role grants it. On the portal host, no admin route resolves. One `ddev start` in `apps/portal` serves both hosts locally.
+
 ## Constraints
 
 - DDEV project root is `apps/www` with `docroot: wordpress`, and the wp-content symlinks are relative — anything else puts symlink targets outside the container mount.
@@ -50,6 +54,9 @@ A pain to pre-empt: WOptimize is one product across several surfaces — a WP ma
 - The design system stays tokens + base styles until both apps need the same component — envelope, not truck.
 - After launch, content flows one way: production → local. `ddev push` on a live site destroys content edits; the pre-launch push carries a double confirmation — DDEV's own confirm plus a typed production hostname.
 - Release rollback covers code only; DB and uploads roll back via backups.
+- The admin dashboard is a surface of `apps/portal`, never a separate app. A separate app would own a separate database and could not read the site registry (spine AD-2, AD-20).
+- The admin domain is config (`ADMIN_DOMAIN`) and always resolves to a non-null value — a null domain matches every host and would answer admin routes on the client portal.
+- Admin identity lives in its own table with its own guard, never a role flag on the client `users` table (spine AD-20). The `admin_users` migration is additive, so rollback stays safe (AD-10).
 
 ## Non-goals
 
@@ -57,7 +64,9 @@ A pain to pre-empt: WOptimize is one product across several surfaces — a WP ma
 - A license system for the connector — offboarding is uninstall; the orphaned plugin becomes pure no-ops.
 - Umami as a codebase — `infra/umami` holds compose + env only.
 - A shared UI component library ahead of shared need.
+- A separate admin app, admin repo, or admin database.
+- Admin feature scope — plans, billing, client tracking, impersonation. This spec fixes the surface only.
 
 ## Success signal
 
-- One token edit rebuilds into both apps' styles; a push touching one app deploys only that app; a bad www or portal deploy is undone with one command; an offboarded client site keeps running with the connector doing nothing.
+- One token edit rebuilds into both apps' styles; a push touching one app deploys only that app; a bad www or portal deploy is undone with one command; an offboarded client site keeps running with the connector doing nothing; and a client account reaches no admin route, on either hostname.
