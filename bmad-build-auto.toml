@@ -52,7 +52,7 @@ context-free subagent with this prompt — REPO_ROOT replaced by that absolute p
 `{diff_file}` replaced by its absolute path, and `{verbatim_intent}` replaced by
 the verbatim intent text this run started from:
 
-Run the following as ONE Bash call, in the foreground, with a 1200000 ms timeout — never backgrounded, never detached. It must be a single call so the shell variable survives between the two commands.
+Run the following as ONE Bash call, in the foreground, with the longest timeout the harness allows (600000 ms) — never backgrounded, never detached by you. If the harness itself moves the command to the background because it outlived that timeout, do not stop: wait for the completion notice, then read the output file the harness named and return its findings the same way. It must be a single call so the shell variable survives between the two commands.
 
     INTENT="$(mktemp -t bmad-verbatim-intent)"
     cat > "$INTENT" <<'VERBATIM_INTENT_EOF'
@@ -81,7 +81,7 @@ Resolve REPO_ROOT by running `git rev-parse --show-toplevel`, then launch a
 context-free subagent with this prompt, REPO_ROOT replaced by that absolute path
 and `{diff_file}` replaced by its absolute path:
 
-Run exactly this command, in the foreground, with a 1200000 ms timeout — never backgrounded, never detached:
+Run exactly this command, in the foreground, with the longest timeout the harness allows (600000 ms) — never backgrounded, never detached by you. If the harness itself moves the command to the background because it outlived that timeout, do not stop: wait for the completion notice, then read the output file the harness named and return its findings the same way. The command:
 
     bash "REPO_ROOT/_bmad/custom/scripts/external-review.sh" --mode edge --diff "{diff_file}"
 
