@@ -1,5 +1,5 @@
 <!-- bmad:context -->
-<!-- Verified 2026-08-24 against 188bd5d. Managed by bmad-project-context; edits inside this block are replaced on refresh. Keep anything you want preserved outside the markers. -->
+<!-- Verified 2026-08-25 against 7d043cb. Managed by bmad-project-context; edits inside this block are replaced on refresh. Keep anything you want preserved outside the markers. -->
 
 ## woptimize.io
 
@@ -38,7 +38,7 @@ Planning artifacts live in `_bmad-output/`.
 
 ## Where things are
 
-- Architecture invariants AD-1…AD-19, stack versions, structural seed:
+- Architecture invariants AD-1…AD-20, stack versions, structural seed:
   `_bmad-output/planning-artifacts/architecture/architecture-woptimize.io-2026-08-24/ARCHITECTURE-SPINE.md`
 - Build contract — capabilities, constraints, non-goals:
   `_bmad-output/specs/spec-repo-structure/SPEC.md`
@@ -105,6 +105,16 @@ Planning artifacts live in `_bmad-output/`.
 
 - An app never imports another app's code. Share through `packages/` at build
   time, or the connector↔portal contract at runtime (AD-1, AD-2).
+- The admin dashboard is a surface of `apps/portal`, never a new app under
+  `apps/` (AD-20). `admin.woptimize.io`, and `admin.woptimize.ddev.site`
+  locally, serve the same codebase, database, release, and deploy job as the
+  client portal. Split routes by domain into separate route files, reading
+  `ADMIN_DOMAIN` from config — never a literal, and never null, because
+  `Route::domain(null)` matches every host. The admin gets no CI workflow,
+  path filter, or secret prefix of its own: `portal.yml` and `PORTAL_*` cover
+  both surfaces.
+- Admin identity is its own `admin_users` table with its own Laravel guard,
+  never a role flag on the client `users` table (AD-20).
 - Each app keeps its own framework's idioms and tooling. Nothing crosses the
   WordPress/Laravel border except tokens and the contract (AD-15).
 - Connector code must run on PHP 8.1 and WordPress 6.7 — no PHP 8.2+ syntax —
