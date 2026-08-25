@@ -135,6 +135,18 @@ The reviewer models are **pinned** at the top of `scripts/external-review.sh`.
 That is deliberate: a review that follows whatever model was last selected is
 not reproducible, and two runs of the same diff stop being comparable.
 
+**Long reviews and the host's per-call timeout.** Claude Code caps one Bash
+call at 600 s by default, and an `xhigh` review of a real diff takes longer.
+`external-review.sh` therefore runs the reviewer **detached** and returns
+within `--wait` seconds (default 540): still running → it prints
+`EXTERNAL_REVIEW_PENDING: <job-id>` and exits 0; the courier prompts then call
+`--resume <job-id>` until the findings arrive. No call ever reaches the cap and
+nothing depends on the host waking a courier up. Job folders live under
+`$TMPDIR/external-review-jobs/`, so a result is never lost even when a courier
+is. Lockfiles (`composer.lock`, `package-lock.json`, …) are stripped from the
+diff first — the reviewer is told which ones. Raising the cap as well is
+optional: `"env": {"BASH_MAX_TIMEOUT_MS": "1800000"}` in `.claude/settings.json`.
+
 ---
 
 ## Check the pack: `doctor.sh`

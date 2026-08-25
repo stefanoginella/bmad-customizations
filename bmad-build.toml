@@ -57,7 +57,7 @@ Resolve REPO_ROOT by running `git rev-parse --show-toplevel`, then launch a
 context-free subagent with this prompt, REPO_ROOT replaced by that absolute path
 and `{diff_file}` replaced by its absolute path:
 
-Run exactly this command, in the foreground, with the longest timeout the harness allows (600000 ms) — never backgrounded, never detached by you. If the harness itself moves the command to the background because it outlived that timeout, do not stop: wait for the completion notice, then read the output file the harness named and return its findings the same way. The command:
+Run exactly this command, in the foreground, with a 600000 ms timeout. It always returns within about nine minutes: while the external review is still running it prints `EXTERNAL_REVIEW_PENDING: <job-id>` and exits 0. On that line, run `bash "REPO_ROOT/_bmad/custom/scripts/external-review.sh" --resume <job-id>` (same timeout) and keep resuming until the output holds the findings or an `EXTERNAL_REVIEW_ERROR` line. A PENDING line is never a result: never stop, never report, on it. Do not background or detach anything yourself. The command:
 
     bash "REPO_ROOT/_bmad/custom/scripts/external-review.sh" --mode blind --diff "{diff_file}"
 
@@ -79,7 +79,7 @@ Resolve REPO_ROOT by running `git rev-parse --show-toplevel`, then launch a
 context-free subagent with this prompt, REPO_ROOT replaced by that absolute path
 and `{diff_file}` replaced by its absolute path:
 
-Run exactly this command, in the foreground, with the longest timeout the harness allows (600000 ms) — never backgrounded, never detached by you. If the harness itself moves the command to the background because it outlived that timeout, do not stop: wait for the completion notice, then read the output file the harness named and return its findings the same way. The command:
+Run exactly this command, in the foreground, with a 600000 ms timeout. It always returns within about nine minutes: while the external review is still running it prints `EXTERNAL_REVIEW_PENDING: <job-id>` and exits 0. On that line, run `bash "REPO_ROOT/_bmad/custom/scripts/external-review.sh" --resume <job-id>` (same timeout) and keep resuming until the output holds the findings or an `EXTERNAL_REVIEW_ERROR` line. A PENDING line is never a result: never stop, never report, on it. Do not background or detach anything yourself. The command:
 
     bash "REPO_ROOT/_bmad/custom/scripts/external-review.sh" --mode edge --diff "{diff_file}"
 
@@ -102,7 +102,7 @@ Resolve REPO_ROOT by running `git rev-parse --show-toplevel`, then launch a
 context-free subagent with this prompt, REPO_ROOT replaced by that absolute path
 and `{diff_file}` and `{spec_file}` replaced by their absolute paths:
 
-Run exactly this command, in the foreground, with the longest timeout the harness allows (600000 ms) — never backgrounded, never detached by you. If the harness itself moves the command to the background because it outlived that timeout, do not stop: wait for the completion notice, then read the output file the harness named and return its findings the same way. The command:
+Run exactly this command, in the foreground, with a 600000 ms timeout. It always returns within about nine minutes: while the external review is still running it prints `EXTERNAL_REVIEW_PENDING: <job-id>` and exits 0. On that line, run `bash "REPO_ROOT/_bmad/custom/scripts/external-review.sh" --resume <job-id>` (same timeout) and keep resuming until the output holds the findings or an `EXTERNAL_REVIEW_ERROR` line. A PENDING line is never a result: never stop, never report, on it. Do not background or detach anything yourself. The command:
 
     bash "REPO_ROOT/_bmad/custom/scripts/external-review.sh" --mode intent --diff "{diff_file}" --intent "{spec_file}"
 
@@ -142,7 +142,7 @@ instruction = """
 Resolve REPO_ROOT by running `git rev-parse --show-toplevel`, then launch a
 context-free subagent with this prompt, REPO_ROOT replaced by that absolute path:
 
-Run exactly this command, in the foreground, with the longest timeout the harness allows (600000 ms) — never backgrounded, never detached by you. If the harness itself moves the command to the background because it outlived that timeout, do not stop: wait for the completion notice, then read the output file the harness named and return its findings the same way. The command:
+Run exactly this command, in the foreground, with a 600000 ms timeout. It always returns within about nine minutes: while the external review is still running it prints `EXTERNAL_REVIEW_PENDING: <job-id>` and exits 0. On that line, run `bash "REPO_ROOT/_bmad/custom/scripts/external-review.sh" --resume <job-id>` (same timeout) and keep resuming until the output holds the findings or an `EXTERNAL_REVIEW_ERROR` line. A PENDING line is never a result: never stop, never report, on it. Do not background or detach anything yourself. The command:
 
     bash "REPO_ROOT/_bmad/custom/scripts/external-review.sh" --mode blind
 
@@ -165,7 +165,7 @@ instruction = """
 Resolve REPO_ROOT by running `git rev-parse --show-toplevel`, then launch a
 context-free subagent with this prompt, REPO_ROOT replaced by that absolute path:
 
-Run exactly this command, in the foreground, with the longest timeout the harness allows (600000 ms) — never backgrounded, never detached by you. If the harness itself moves the command to the background because it outlived that timeout, do not stop: wait for the completion notice, then read the output file the harness named and return its findings the same way. The command:
+Run exactly this command, in the foreground, with a 600000 ms timeout. It always returns within about nine minutes: while the external review is still running it prints `EXTERNAL_REVIEW_PENDING: <job-id>` and exits 0. On that line, run `bash "REPO_ROOT/_bmad/custom/scripts/external-review.sh" --resume <job-id>` (same timeout) and keep resuming until the output holds the findings or an `EXTERNAL_REVIEW_ERROR` line. A PENDING line is never a result: never stop, never report, on it. Do not background or detach anything yourself. The command:
 
     bash "REPO_ROOT/_bmad/custom/scripts/external-review.sh" --mode edge
 
