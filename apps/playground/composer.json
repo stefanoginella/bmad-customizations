@@ -1,0 +1,26 @@
+{
+    "name": "woptimize/playground",
+    "description": "Integration suite: the real connector plugin on a real WordPress against the real portal.",
+    "type": "project",
+    "license": "proprietary",
+    "require-dev": {
+        "guzzlehttp/guzzle": "^7.9",
+        "league/openapi-psr7-validator": "^0.24",
+        "phpunit/phpunit": "^10.5",
+        "symfony/process": "^6.4",
+        "symfony/yaml": "^6.4"
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "WOptimize\\Playground\\Tests\\": "tests/"
+        }
+    },
+    "config": {
+        "platform": {
+            "php": "8.1.0"
+        },
+        "sort-packages": true
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}

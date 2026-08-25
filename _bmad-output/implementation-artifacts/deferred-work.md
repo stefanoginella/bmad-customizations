@@ -39,3 +39,27 @@
 - source_spec: `_bmad-output/specs/spec-repo-structure/stories/5-portal-contract-side.md`
   summary: Pin the outbound connector call to the address `PublicHost` checked — resolve once, then connect through `CURLOPT_RESOLVE` (Guzzle `curl` options) with the original Host and SNI — so a DNS answer cannot change between the check and the connect.
   evidence: Security review flagged the TOCTOU on `PublicHost`. `ConnectorClient::get()` now re-runs the check right before each call, which closes the days-long window between phone-home and `site:status`; the milliseconds between that check and the TCP connect remain open. Full pinning needs cURL options and SNI care the story did not scope.
+
+- source_spec: `_bmad-output/specs/spec-repo-structure/stories/6-playground-and-integration-suite.md`
+  summary: Run `.github/workflows/contract-suite.yml` for real once a git remote exists — the first push, or story 8's deploy work, whichever lands first. Watch for the three things a local run cannot show: `ddev/github-action-setup-ddev@v1` bringing up two DDEV projects on one `ubuntu-latest` runner, inter-project HTTPS by hostname through the CI router (the suite's `wp_remote_post` needs `/mnt/ddev-global-cache/mkcert/rootCA.pem` to exist there), and the wall-clock cost of `ddev portal-setup` plus `ddev playground-setup` in the same job.
+  evidence: The repo has no git remote, and the story's Never list forbids pushing to GitHub. The workflow was verified by `actionlint` (exit 0) and by running its one real step, `ddev contract-suite all`, on the host — nothing has ever executed the checkout/setup-node/setup-ddev steps.
+
+- source_spec: `_bmad-output/specs/spec-repo-structure/stories/6-playground-and-integration-suite.md`
+  summary: Update the architecture spine for the contract version: the Stack table row (`| OpenAPI | 3.1 |`) and the AD-4 rule text ("`packages/connector/openapi.yaml` (OpenAPI 3.1)") both still read 3.1, while the file now declares `3.0.3`. The Deferred entry that pre-authorized the flip ("if no maintained 3.1 validator fits, write the contract 3.0.3-compatible instead — a build-story call") is now answered and can be struck. Run `bmad-correct-course` — the spine is never hand-edited.
+  evidence: `ARCHITECTURE-SPINE.md:71,205,280`. `packages/connector/tests/ContractTest.php` now asserts `3.0.3` — the portal's `ContractTest` asserts no version at all, so the connector's is the only test holding the file to it — and the playground suite validates live responses against the file with `league/openapi-psr7-validator`, which the spine itself names as the 3.0.x-only risk. The story's Never list forbids editing the spine.
+
+- source_spec: `_bmad-output/specs/spec-repo-structure/stories/6-playground-and-integration-suite.md`
+  summary: Decide what a client site with plain permalinks should get. `Site_Report::build()` reports `rest_base = rest_url('woptimize/v1')`, which is `https://site/?rest_route=/woptimize/v1` under the plain structure; `PhoneHomeRequest` refuses a `rest_base` carrying a query string, so such a site phones home into a permanent `422` and never appears in the registry — silently, because AD-7 makes any 4xx quiet. Either accept the query form in the contract and in `PublicHost`/`PhoneHomeRequest`, or surface the condition on **Settings → WOptimize** so the human sees why the site never connects.
+  evidence: `playground-setup` sets `/%postname%/` precisely to dodge this, and the connector README already notes the plain structure answers at `?rest_route=…`. Nothing tells a real client site's owner. The story's Never list forbids connector PHP changes and new contract paths.
+
+- source_spec: `_bmad-output/specs/spec-repo-structure/stories/6-playground-and-integration-suite.md`
+  summary: Pin the three `uses:` lines in `.github/workflows/contract-suite.yml` (`actions/checkout`, `actions/setup-node`, `ddev/github-action-setup-ddev`) to full commit SHAs with the version in a trailing comment, at the first real CI run.
+  evidence: Security review — a mutable tag plus the persisted `GITHUB_TOKEN` from `actions/checkout` is the tj-actions/changed-files shape. `permissions: contents: read` is already set; the SHAs need a network check the story's "no push to GitHub" rule keeps out of this build.
+
+- source_spec: `_bmad-output/specs/spec-repo-structure/stories/6-playground-and-integration-suite.md`
+  summary: Refresh the `AGENTS.md` managed block with `bmad-project-context` — it still says the contract "is written 3.1", calls `packages/connector` "a third DDEV project", says integration tests "belong on `apps/playground` (story 6)", and states the WordPress pin lives in `www-setup` "and nowhere else" while `playground-setup` now carries its own `WP_VERSION=6.7`.
+  evidence: Three review layers flagged the stale block. The story's Never list forbids a hand edit, and its manual check already names the refresh.
+
+- source_spec: `_bmad-output/specs/spec-repo-structure/stories/6-playground-and-integration-suite.md`
+  summary: Decide what to do with the `## Doc timeline` section that appeared at the bottom of `AGENTS.md` during this build, outside the managed block — it is unrelated to story 6 and links `_bmad-output/forge/monorepo-vs-multirepo/forget-idea.md`, which does not exist (the file is `forged-idea.md`).
+  evidence: The change was not made by this story's agents and was not in the baseline working tree; the story forbids hand edits of `AGENTS.md`, so it was left untouched for the human.

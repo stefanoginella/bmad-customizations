@@ -1,10 +1,12 @@
 # The connector <-> portal contract (AD-4). Single source of truth for BOTH
 # directions. Change this file BEFORE any code, both directions in one PR.
 #
-# Written 3.0.3-portable on purpose: no `nullable`, no type arrays, no
-# `webhooks`, no schema-level `examples`. Story 6 picks the validator library
-# and may flip the `openapi:` line below to `3.0.3` without touching anything
-# else.
+# Declared 3.0.3, and written to stay 3.0.3-valid: no `nullable`, no type
+# arrays, no `webhooks`, no schema-level `examples`. Story 6 decided the
+# version (AD-4, spine Deferred): every maintained PHP response validator sits
+# on the League engine, which reads 3.0.x only, and the playground suite holds
+# real responses against this file. Declaring 3.1 and validating 3.0 would mean
+# the document says one thing and the suite proves another.
 #
 # Two directions, two hosts, so every path carries its own `servers` block:
 #   - /ping, /status  are hosted by the CONNECTOR, on the client site, under
@@ -15,7 +17,7 @@
 # `info.version` is the connector's MAJOR.MINOR. Karin's rule (AD-8): the
 # portal supports the current and the previous minor, so a contract change
 # needs a minor bump and the connector ships first.
-openapi: 3.1.0
+openapi: 3.0.3
 
 info:
   title: WOptimize connector contract

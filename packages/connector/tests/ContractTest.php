@@ -35,7 +35,7 @@ final class ContractTest extends TestCase {
 	 * @return void
 	 */
 	public function test_openapi_version(): void {
-		$this->assertSame( '3.1.0', $this->contract()['openapi'] );
+		$this->assertSame( '3.0.3', $this->contract()['openapi'] );
 	}
 
 	/**
@@ -273,8 +273,10 @@ final class ContractTest extends TestCase {
 	}
 
 	/**
-	 * The file stays 3.0.3-portable, so story 6 can flip one line if the
-	 * validator it picks only speaks 3.0 (spine, Deferred).
+	 * The file must stay 3.0.3-valid: the playground suite validates live
+	 * responses against it with `league/openapi-psr7-validator`, and that
+	 * engine speaks 3.0 only. A 3.1-only keyword would be read as something
+	 * else, or ignored, without a single test turning red.
 	 *
 	 * @return void
 	 */

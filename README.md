@@ -17,7 +17,7 @@ woptimize/
   infra/
     umami/          compose + env only — deployment, not a codebase
   .github/
-    workflows/      per-app CI with path filters
+    workflows/      CI with path filters — contract-suite.yml today, per-app later
 ```
 
 Empty folders above are placeholders held by `.gitkeep`. A later story fills
@@ -29,7 +29,7 @@ You need **DDEV >= 1.25** with a Docker provider, plus **Node >= 24 on the
 host** (`.nvmrc` says `24`) for the design-token build. Everything else runs in
 the containers.
 
-Three DDEV projects live in this repo, each with its own README and quickstart:
+Four DDEV projects live in this repo, each with its own README and quickstart:
 
 - [`apps/www/README.md`](apps/www/README.md) — `ddev start` + `ddev www-setup`
 - [`apps/portal/README.md`](apps/portal/README.md) — `ddev start` + `ddev portal-setup`
@@ -37,6 +37,15 @@ Three DDEV projects live in this repo, each with its own README and quickstart:
   + `ddev composer install`, then `ddev composer test` and `ddev composer lint`.
   Its own DDEV project runs **PHP 8.1**, the client-site floor, with no
   database.
+- [`apps/playground/README.md`](apps/playground/README.md) — `ddev start` +
+  `ddev playground-setup` + `ddev composer install`. A throwaway WordPress 6.7
+  on PHP 8.1 that runs the real connector against the real portal.
+
+`ddev contract-suite`, run from `apps/playground`, is the whole integration
+suite: it starts the portal, plants a fixture site, and holds every live
+response — the connector's and the portal's — against the contract, for the
+current connector and for the previous minor. It is also the single step of
+`.github/workflows/contract-suite.yml`, so CI runs the same command you do.
 
 `ddev www-setup` and `ddev portal-setup` each build the design tokens as their
 first step, so the two apps need nothing extra by hand. The connector has no

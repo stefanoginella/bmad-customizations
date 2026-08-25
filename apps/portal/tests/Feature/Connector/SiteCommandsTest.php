@@ -24,6 +24,26 @@ function runCommand(string $command, array $arguments = []): array
     return [$exit, Artisan::output()];
 }
 
+/**
+ * A well-formed site key: 40 alphanumeric characters, typed by a human.
+ */
+const SUPPLIED_KEY = 'PLAYGROUNDFIXTUREKEY00000000000000000000';
+
+/**
+ * The lines a command actually printed, blank ones dropped.
+ *
+ * A refusal says one thing and stops — it never leaks a key or a stack trace.
+ *
+ * @return array<int, string>
+ */
+function printedLines(string $output): array
+{
+    return array_values(array_filter(
+        array_map('trim', explode("\n", $output)),
+        fn (string $line): bool => $line !== '',
+    ));
+}
+
 // Matrix row: "Onboard".
 it('onboards a site, leaves rest_base null, and prints the key once', function () {
     [$exit, $output] = runCommand('site:onboard', ['site_url' => 'https://client.example']);
@@ -67,6 +87,52 @@ it('refuses to onboard a site_url that is already registered', function () {
     [$exit] = runCommand('site:onboard', ['site_url' => 'https://client.example']);
 
     expect($exit)->toBe(1)->and(Site::count())->toBe(1);
+});
+
+// Matrix row: "`--key` accepted". The portal still issues every key (AD-16):
+// `--key` only makes the playground fixture reproducible, so `ddev
+// contract-suite` can re-plant the same site without a fresh secret.
+it('accepts a supplied key outside production and lets it authenticate', function () {
+    $key = SUPPLIED_KEY;
+
+    [$exit] = runCommand('site:onboard', ['site_url' => 'https://x.example', '--key' => $key]);
+
+    expect($exit)->toBe(0);
+
+    $site = Site::sole();
+    $stored = DB::table('sites')->where('id', $site->id)->first();
+
+    expect($site->site_url)->toBe('https://x.example')
+        ->and($stored->site_key_hash)->toBe(hash('sha256', $key));
+
+    $this->postJson(PHONE_HOME_URL, siteReport(), [SITE_KEY_HEADER => $key])->assertOk();
+});
+
+// Matrix row: "`--key` refused" — production. `config/app.php` defaults
+// `APP_ENV` to `production`, so an unset environment is refused too.
+it('refuses a supplied key in production', function () {
+    app()->detectEnvironment(fn () => 'production');
+
+    [$exit, $output] = runCommand('site:onboard', [
+        'site_url' => 'https://x.example',
+        '--key' => SUPPLIED_KEY,
+    ]);
+
+    expect($exit)->toBe(1)
+        ->and(Site::count())->toBe(0)
+        ->and(printedLines($output))->toHaveCount(1);
+});
+
+// Matrix row: "`--key` refused" — not a site key at all.
+it('refuses a supplied key that is not a well-formed site key', function () {
+    [$exit, $output] = runCommand('site:onboard', [
+        'site_url' => 'https://x.example',
+        '--key' => 'abc',
+    ]);
+
+    expect($exit)->toBe(1)
+        ->and(Site::count())->toBe(0)
+        ->and(printedLines($output))->toHaveCount(1);
 });
 
 // Matrix row: "Rotate".

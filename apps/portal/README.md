@@ -143,6 +143,20 @@ ddev exec php artisan site:status <site>                    # GET {rest_base}/st
 `<site>` is an id or a `site_url`. A failure exits 1 with one line. `site:list`
 never prints a key, and neither does any log line.
 
+`site:onboard` also takes `--key=<40 alphanumeric characters>`, which stores
+that key instead of drawing a fresh one. It exists for one caller — `ddev
+contract-suite` in [`apps/playground`](../playground/README.md), which re-plants
+the same fixture site over and over and needs the site it just set up to keep
+working. The portal still issues every key (AD-16): the row carries the same
+`sha256` hash and the same encrypted plaintext as always, and the key is still
+announced exactly once.
+
+**It never works in production.** A key typed on a command line is in a shell
+history, so `--key` exits 1 with one line and creates no row when
+`app()->isProduction()` — `config/app.php` defaults `APP_ENV` to `production`,
+so an unset environment is refused too — or when the value is not a well-formed
+site key.
+
 `rest_base` is whatever the site reported — the portal never derives it from
 `site_url`, and refuses to call a site that has not phoned home yet. A pull is
 read-only: `last_seen_at` means "phoned home", so `site:ping` and `site:status`

@@ -1,0 +1,23 @@
+name: playground
+type: wordpress
+docroot: wordpress
+# The connector's floor (AD-18): the playground plays the worst client the
+# plugin claims to support, so a regression that only bites on 8.1 is caught
+# here and not on a client site.
+php_version: "8.1"
+webserver_type: nginx-fpm
+# Matches the DDEV >= 1.25 prerequisite in README.md. Stops an older DDEV at
+# `ddev start` instead of letting it fail later and confusingly.
+ddev_version_constraint: ">= 1.25"
+database:
+  type: mariadb
+  version: "11.8"
+web_environment:
+  # The one place the fixture key is written. `playground-setup` plants it in
+  # the site, `contract-suite` onboards the same value on the portal, and the
+  # tests read it straight from this environment. It is a fixture, never a
+  # secret: it exists only inside this local project.
+  - WOPTIMIZE_TEST_SITE_KEY=PLAYGROUNDFIXTUREKEY00000000000000000000
+  # The mu-plugin turns this into the connector's `WOPTIMIZE_PORTAL_URL`
+  # constant. The only non-production portal value in the repo.
+  - WOPTIMIZE_PORTAL_URL=https://portal.woptimize.ddev.site

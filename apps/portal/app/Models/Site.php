@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use InvalidArgumentException;
 
 /**
  * One registered client site (AD-6).
@@ -75,10 +76,27 @@ class Site extends Model implements Authenticatable
      * Issues a fresh key for this site and returns the plaintext once.
      *
      * The old key dies the same second: the row is saved before this returns.
+     *
+     * The portal still issues every key (AD-16). `$key` only lets a caller
+     * supply the plaintext instead of drawing a fresh one, so the playground
+     * fixture is reproducible; `site:onboard` refuses that in production and
+     * checks the format first.
+     *
+     * @param  string|null  $key  The plaintext to store, or null for a fresh one.
+     *
+     * @throws InvalidArgumentException When a supplied key is not a site key.
      */
-    public function issueKey(): string
+    public function issueKey(?string $key = null): string
     {
-        $key = SiteKey::generate();
+        // The caller has already refused a bad key with a readable message; this
+        // is the model refusing to store one whatever the caller believed. A row
+        // whose plaintext cannot pass `findByKey()` would authenticate nothing
+        // and look perfectly healthy in the registry.
+        if ($key !== null && ! SiteKey::isValidFormat($key)) {
+            throw new InvalidArgumentException('A site key is 40 alphanumeric characters.');
+        }
+
+        $key ??= SiteKey::generate();
 
         $this->forceFill([
             'site_key' => $key,

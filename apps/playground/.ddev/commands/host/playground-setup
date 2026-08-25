@@ -1,0 +1,160 @@
+#!/usr/bin/env bash
+
+## Description: Build the whole local playground state: download WordPress, link the connector + the mu-plugin, install the site, activate, set pretty permalinks, plant the fixture key.
+## Usage: playground-setup
+## Example: "ddev playground-setup"
+## ProjectTypes: wordpress
+## HostWorkingDir: false
+
+set -euo pipefail
+
+# The one place WordPress is pinned for the playground, and nowhere else — not
+# even the environment moves it. 6.7 is the connector's floor: the playground
+# plays the worst client the plugin claims to support.
+WP_VERSION=6.7
+
+APPROOT="${DDEV_APPROOT:?run this through ddev (ddev playground-setup)}"
+SITE_URL="${DDEV_PRIMARY_URL:-https://playground.ddev.site}"
+
+# Where docker-compose.connector.yaml mounts packages/connector, read-only.
+CONNECTOR_MOUNT="/mnt/woptimize/connector"
+
+cd "${APPROOT}"
+
+# Read the version of the WordPress core that is actually on disk. Empty when
+# core is absent.
+installed_wp_version() {
+  [ -f wordpress/wp-includes/version.php ] || return 0
+  awk -F"'" '/^\$wp_version *=/ { print $2; exit }' wordpress/wp-includes/version.php
+}
+
+# Wait for a host-side path to appear inside the container. Mutagen (macOS,
+# Windows) syncs asynchronously; a flush that has not landed resurfaces later as
+# a misleading "plugin not found".
+wait_for_container_path() {
+  local path="$1" attempt
+  for attempt in 1 2 3 4 5; do
+    if ddev exec test -e "${path}" >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 1
+    ddev mutagen sync >/dev/null 2>&1 || true
+  done
+  return 1
+}
+
+# --- 1. WordPress core -------------------------------------------------------
+CURRENT_WP="$(installed_wp_version)"
+if [ -z "${CURRENT_WP}" ]; then
+  echo "==> Downloading WordPress ${WP_VERSION} ..."
+  mkdir -p wordpress
+  ddev wp core download --version="${WP_VERSION}"
+elif [ "${CURRENT_WP}" = "${WP_VERSION}" ]; then
+  echo "==> WordPress ${WP_VERSION} already in place — skipping."
+else
+  echo "==> WordPress ${CURRENT_WP} on disk, pin says ${WP_VERSION} — moving core to the pin ..."
+  ddev wp core update --version="${WP_VERSION}" --force
+fi
+
+# --- 2. wp-config.php --------------------------------------------------------
+# DDEV writes it at start/restart. Deleting wordpress/ takes it with the rest, and
+# every later wp-cli call then fails with a confusing error. Fail loudly here.
+if [ ! -f wordpress/wp-config.php ]; then
+  echo "ERROR: wordpress/wp-config.php is missing — DDEV generates it, not this command." >&2
+  echo "       Run 'ddev restart', then run 'ddev playground-setup' again." >&2
+  exit 1
+fi
+
+# --- 3. The two symlinks -----------------------------------------------------
+# The connector lives five levels above wp-content/plugins/, outside this
+# project's mount, so a relative link would dangle inside the container. It
+# reaches the container as a read-only bind mount instead, and the plugin folder
+# is a symlink to that mount — the code is still the repo's, live (AD-18).
+#
+# The mu-plugin does live in this project, so it gets the ordinary relative
+# link: from wordpress/wp-content/mu-plugins/, ../../../ resolves to
+# apps/playground/.
+echo "==> Asserting wp-content symlinks ..."
+mkdir -p wordpress/wp-content/plugins wordpress/wp-content/mu-plugins
+
+# `ln -sfn` into an existing real directory creates the link *inside* it, and
+# every later check still passes while WordPress runs whatever that directory
+# holds. Refuse to guess which copy is wanted.
+PLUGIN_LINK="wordpress/wp-content/plugins/woptimize-connector"
+if [ -e "${PLUGIN_LINK}" ] && [ ! -L "${PLUGIN_LINK}" ]; then
+  echo "ERROR: ${PLUGIN_LINK} exists and is not a symlink." >&2
+  echo "       This command owns that path as a link to ${CONNECTOR_MOUNT}." >&2
+  echo "       Delete it, then run 'ddev playground-setup' again." >&2
+  exit 1
+fi
+
+ln -sfn "${CONNECTOR_MOUNT}" "${PLUGIN_LINK}"
+ln -sfn ../../../mu-plugins/woptimize-playground.php wordpress/wp-content/mu-plugins/woptimize-playground.php
+
+# Flush host -> container, then confirm the container really resolves both links.
+ddev mutagen sync >/dev/null 2>&1 || true
+for link in plugins/woptimize-connector mu-plugins/woptimize-playground.php; do
+  if ! wait_for_container_path "/var/www/html/wordpress/wp-content/${link}"; then
+    echo "ERROR: wp-content/${link} never resolved inside the web container." >&2
+    echo "       Either the host -> container sync flush did not land, or the" >&2
+    echo "       packages/connector mount is missing. Check 'ddev mutagen status'," >&2
+    echo "       then run 'ddev restart' and try again." >&2
+    exit 1
+  fi
+done
+
+# --- 4. Site install ---------------------------------------------------------
+if ddev wp core is-installed >/dev/null 2>&1; then
+  echo "==> Site already installed — skipping."
+else
+  echo "==> Installing WordPress at ${SITE_URL} ..."
+  # Local-only credentials. Never used anywhere but this DDEV project.
+  ddev wp core install \
+    --url="${SITE_URL}" \
+    --title="WOptimize playground (local)" \
+    --admin_user=admin \
+    --admin_password=admin \
+    --admin_email=admin@playground.ddev.site \
+    --skip-email
+fi
+
+# --- 5. Activation -----------------------------------------------------------
+if ddev wp plugin is-active woptimize-connector >/dev/null 2>&1; then
+  echo "==> woptimize-connector already active — skipping."
+else
+  echo "==> Activating woptimize-connector ..."
+  ddev wp plugin activate woptimize-connector
+fi
+
+# --- 6. Pretty permalinks ----------------------------------------------------
+# SiteReport.rest_base is rest_url('woptimize/v1'). Under plain permalinks that
+# is `?rest_route=…`, a query string the portal refuses with a 422.
+PERMALINKS="/%postname%/"
+if [ "$(ddev wp option get permalink_structure 2>/dev/null || true)" = "${PERMALINKS}" ]; then
+  echo "==> Permalinks already ${PERMALINKS} — skipping."
+else
+  echo "==> Setting permalinks to ${PERMALINKS} ..."
+  ddev wp rewrite structure "${PERMALINKS}"
+fi
+
+# --- 7. The fixture site key -------------------------------------------------
+# WOPTIMIZE_TEST_SITE_KEY is set in one place, .ddev/config.yaml. Writing it
+# fires a synchronous phone-home, which is a silent no-op until the portal has
+# the matching row — so write it only when it actually differs.
+FIXTURE_KEY="$(ddev exec printenv WOPTIMIZE_TEST_SITE_KEY 2>/dev/null | tr -d '\r\n' || true)"
+if [ -z "${FIXTURE_KEY}" ]; then
+  echo "ERROR: WOPTIMIZE_TEST_SITE_KEY is empty in the web container." >&2
+  echo "       It is set in .ddev/config.yaml — run 'ddev restart' and try again." >&2
+  exit 1
+fi
+
+if [ "$(ddev wp option get woptimize_connector_site_key 2>/dev/null || true)" = "${FIXTURE_KEY}" ]; then
+  echo "==> Fixture site key already stored — skipping."
+else
+  echo "==> Storing the fixture site key ..."
+  ddev wp option update woptimize_connector_site_key "${FIXTURE_KEY}" >/dev/null
+fi
+
+echo
+echo "Done. ${SITE_URL} — admin / admin at ${SITE_URL}/wp-admin"
+echo "The site key is the value of WOPTIMIZE_TEST_SITE_KEY in .ddev/config.yaml."

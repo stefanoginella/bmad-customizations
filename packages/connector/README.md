@@ -3,7 +3,11 @@
 Two things live here:
 
 - **`openapi.yaml`** — the connector↔portal contract, for **both** directions.
-  It is the only runtime coupling in the whole system.
+  It is the only runtime coupling in the whole system. It is written **OpenAPI
+  3.0.3**, and stays 3.0.3-valid: `apps/playground` holds every live response
+  against this file with `league/openapi-psr7-validator`, and that engine — like
+  every maintained PHP response validator — reads 3.0.x only. A 3.1-only
+  keyword would be read as something else, or ignored, with nothing turning red.
 - **everything else** — the `woptimize-connector` plugin, installed on client
   WordPress sites. The contents of this folder **are** the plugin folder
   (AD-17), so the release zip is this folder minus `.distignore`.
@@ -52,8 +56,21 @@ ddev composer lint:fix # what PHPCS can fix on its own
 and no local Composer, same as the two apps.
 
 The DDEV project is `type: php` with no database and no docroot. It is a
-runtime for the tooling, not a site. Real-WordPress integration tests are story
-6's job, on `apps/playground`.
+runtime for the tooling, not a site. Nothing here ever runs the plugin.
+
+Real WordPress runs it in [`apps/playground`](../../apps/playground/README.md):
+a throwaway WordPress 6.7 on PHP 8.1 with this folder mounted read-only as its
+plugin folder, reporting to the real portal.
+
+```bash
+cd apps/playground
+ddev start && ddev playground-setup && ddev composer install
+ddev contract-suite            # current connector + the previous minor
+```
+
+That suite validates every live response against `openapi.yaml` and drives the
+AD-7 no-op scenarios through WP-CLI. Run it after any change here that a portal
+can observe.
 
 ## What is in here
 
@@ -117,7 +134,8 @@ no license system anywhere.
 
 `WOPTIMIZE_PORTAL_URL`, default `https://portal.woptimize.io`, overridable from
 `wp-config.php`. It is a constant and not a setting: one less field a human can
-mistype. The only non-production value is the playground's (story 6).
+mistype. The only non-production value is the playground's, which its mu-plugin
+sets to `https://portal.woptimize.ddev.site`.
 
 ## Changing things
 
@@ -166,5 +184,7 @@ structure the same routes answer at `/?rest_route=/woptimize/v1/status`.
 
 ## Out of scope here
 
-No update-check or download paths, no `update_plugins_*` filter, no CI, no
-playground, no portal code. Those are stories 5, 6 and 9.
+No update-check or download paths, no `update_plugins_*` filter, no portal
+code. Those are stories 5 and 9. The plugin's own CI workflow is story 9 too —
+`.github/workflows/contract-suite.yml` already runs the integration suite on any
+change under `packages/connector/`.

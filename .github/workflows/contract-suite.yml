@@ -1,0 +1,72 @@
+# The connector <-> portal integration suite (AD-11, AD-18).
+#
+# It runs the real plugin on a real WordPress 6.7 at PHP 8.1 against the real
+# portal, and holds every response against `packages/connector/openapi.yaml`.
+# One step does the whole thing — `ddev contract-suite` is the same command, with
+# the same output, that a developer runs locally.
+#
+# `workflow_call` is what the deploy workflows (stories 8-9) will hang their
+# `needs:` on. The `pull_request` trigger is what actually runs it until then.
+name: Contract suite
+
+on:
+  workflow_call:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'apps/playground/**'
+      - 'apps/portal/**'
+      - 'packages/connector/**'
+      - '.github/workflows/contract-suite.yml'
+
+jobs:
+  suite:
+    name: Connector <-> portal contract
+    runs-on: ubuntu-latest
+    # It reads the repository and nothing else: no secrets, no deploy, no
+    # comment, no release.
+    permissions:
+      contents: read
+    # Two DDEV projects plus a WordPress download. A run that has not finished
+    # by then is stuck, not slow.
+    timeout-minutes: 30
+    steps:
+      # The previous-minor leg reads `plugin-v*` tags, so the whole history and
+      # every tag have to be here.
+      - name: Check out the repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      # `ddev portal-setup` builds the design tokens, and that build runs on the
+      # host, not in a container (AD-3).
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      # Docker is preinstalled on ubuntu-latest. `autostart: false` keeps the
+      # action from starting a project before the setup commands do.
+      - name: Set up DDEV
+        uses: ddev/github-action-setup-ddev@v1
+        with:
+          version: v1.25.3
+          autostart: false
+
+      - name: Start the portal
+        working-directory: apps/portal
+        run: |
+          ddev start -y
+          ddev portal-setup
+
+      - name: Start the playground
+        working-directory: apps/playground
+        run: |
+          ddev start -y
+          ddev playground-setup
+          # vendor/ is gitignored, so the suite's own tooling is installed here.
+          ddev composer install
+
+      - name: Run the contract suite
+        working-directory: apps/playground
+        run: ddev contract-suite all
