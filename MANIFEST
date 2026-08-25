@@ -1,0 +1,18 @@
+# Every file this pack owns, relative to _bmad/custom/.
+# scripts/doctor.sh flags anything tracked in the prefix that is not listed
+# here: on `git subtree push` a stray file leaks to every other project.
+.gitignore
+BMAD_VERSION
+MANIFEST
+README.md
+bmad-build-auto.toml
+bmad-build.toml
+bmad-code-review.toml
+config.toml
+review-prompts/external-blind.md
+review-prompts/external-edge.md
+review-prompts/external-intent.md
+review-prompts/security-review.md
+scripts/check_keys.py
+scripts/doctor.sh
+scripts/external-review.sh
