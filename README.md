@@ -63,6 +63,60 @@ git subtree push --prefix=_bmad/custom \
 
 ---
 
+## Which copy do I edit?
+
+**Edit this repo.** Not `_bmad/custom/` inside a project.
+
+Nothing syncs on its own, in **either** direction. A subtree is a snapshot of
+files copied into a project, not a live link. A push here reaches a project only
+when that project runs `git subtree pull`. A project's edit reaches here only on
+`git subtree push`. There is no hook and no watcher — which is the point: a
+change here can never alter a project's behaviour behind your back.
+
+```bash
+# in this repo
+git commit -am "feat: sharpen the edge-case layer"
+bash scripts/doctor.sh
+git push
+```
+
+Then pull it into each project.
+
+Editing inside a project works too, but it costs you:
+
+| | Edit here | Edit in a project |
+| --- | --- | --- |
+| Command | plain `git push` | `git subtree push` |
+| Commit message | stays local | **travels to this repo** |
+| Mixing project work in | impossible | easy, by accident |
+
+`git subtree push` filters the **diff** to the prefix — project files *outside*
+`_bmad/custom/` never leave. Everything *inside* it does travel, which is what
+[The one rule](#the-one-rule) is about. And the filter does **not** apply to the
+commit **message**. A commit called `fix login bug and tweak the review layer`
+lands in this repo's history under that exact title — half of it meaningless to
+anyone reading it here.
+
+So edit in a project only when you hit the problem mid-work. Then keep the pack
+change in its **own** commit, separate from project work, and push it promptly —
+an unpushed local edit turns the next `git subtree pull` into a merge conflict.
+
+### Test a change before you publish it
+
+Pull straight from the local path. No GitHub round trip, nothing published:
+
+```bash
+cd /path/to/project
+git subtree pull --prefix=_bmad/custom /path/to/bmad-customizations main --squash
+bash _bmad/custom/scripts/doctor.sh
+```
+
+Pulling that same change again later from GitHub is safe. Subtree matches on
+content and reports `Subtree is already at commit …` — no duplication, clean
+working tree. Mixing the two sources does not corrupt the prefix.
+
+---
+
 ## Requirements
 
 - **`codex` or `claude` on `PATH`.** `external-review.sh` prefers the CLI that is
@@ -192,6 +246,9 @@ resolved from the project root only. That is why this pack exists.
 ---
 
 ## Editing an override
+
+For *which copy* to edit, see [Which copy do I edit?](#which-copy-do-i-edit).
+For *how* to write the TOML:
 
 Use the `bmad-customize` skill (menu code `BC`) in a **fresh context window**. It
 scans what is customizable, picks the right scope, writes the TOML, and verifies
