@@ -43,6 +43,20 @@ INSTALLED=""
 [ -r "$MANIFEST_YAML" ] &&
   INSTALLED="$(sed -n 's/^[[:space:]]*version:[[:space:]]*//p' "$MANIFEST_YAML" | head -1)"
 
+# The README badge repeats BMAD_VERSION. Two copies of one fact drift, and a
+# badge claiming a version the pack was never verified against is worse than no
+# badge at all — so this one is a failure, not a warning.
+BADGE="$(sed -n 's|.*img\.shields\.io/badge/BMad_Method-\([^-]*\(--[^-]*\)*\)-.*|\1|p' \
+           "${PACK}/README.md" 2>/dev/null | head -1)"
+BADGE="${BADGE//--/-}"
+if [ -z "$BADGE" ]; then
+  warn "no BMad version badge found in README.md"
+elif [ "$BADGE" = "$PINNED" ]; then
+  ok "README badge matches BMAD_VERSION (${PINNED})"
+else
+  fail "README badge says ${BADGE}, BMAD_VERSION says ${PINNED} — update both"
+fi
+
 if [ -z "$INSTALLED" ]; then
   warn "cannot read the installed BMad version from ${MANIFEST_YAML#"$REPO"/}"
 elif [ "$INSTALLED" = "$PINNED" ]; then

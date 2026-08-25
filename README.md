@@ -1,5 +1,8 @@
 # BMad customizations
 
+[![BMad Method](https://img.shields.io/badge/BMad_Method-6.11.1--next.27-blue)](https://github.com/bmad-code-org/BMAD-METHOD)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green)](./LICENSE)
+
 <https://github.com/stefanoginella/bmad-customizations>
 
 A portable BMad override pack. It mounts at `_bmad/custom/` in any project and
@@ -101,7 +104,12 @@ skills that have a `workflow.md` render entry, the doctor also runs
 entry, so the key check is the only check it gets.
 
 The pinned version lives in `BMAD_VERSION` — one line, read by the doctor.
-A mismatch is a **warning**, not a failure: the key check decides.
+A mismatch against the *installed* BMad is a **warning**, not a failure: the key
+check decides.
+
+The badge at the top of this file repeats that version, so the doctor also
+checks the two against each other. That one **is** a failure — a badge claiming
+a version the pack was never verified against is worse than no badge.
 
 **2. Leaks.** See [The one rule](#the-one-rule).
 
