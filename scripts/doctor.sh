@@ -56,6 +56,7 @@ if ! command -v uv >/dev/null 2>&1; then
 else
   for TOML in "$PACK"/bmad-*.toml; do
     [ -e "$TOML" ] || continue
+    case "$TOML" in *.user.toml) continue ;; esac   # project's own layer, not ours
     SKILL="$(basename "$TOML" .toml)"
     SKILL_DIR="${REPO}/.claude/skills/${SKILL}"
 
@@ -123,8 +124,8 @@ case "$PACK" in
       else
         fail "tracked in the prefix but not in MANIFEST — these LEAK on push:"
         printf '%s' "$STRAY" | sed '/^$/d' | detail
-        echo "             Fix: rename to *.user.toml (gitignored, project-only)," | detail
-        echo "             or add to MANIFEST if it belongs to the shared pack." | detail
+        echo "             Fix: rename to *.user.toml (gitignored, project-only),"
+        echo "             or add to MANIFEST if it belongs to the shared pack."
       fi
     fi
     ;;
