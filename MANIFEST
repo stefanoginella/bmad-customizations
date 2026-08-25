@@ -3,6 +3,7 @@
 # here: on `git subtree push` a stray file leaks to every other project.
 .gitignore
 BMAD_VERSION
+LICENSE
 MANIFEST
 README.md
 bmad-build-auto.toml

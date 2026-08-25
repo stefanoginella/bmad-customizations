@@ -11,6 +11,75 @@ Nothing here is project-specific. Every path resolves at run time from
 
 ---
 
+## Install
+
+```bash
+cd /path/to/project
+
+# BMad ignore rule — skip if the project already has it
+printf '_bmad/*\n!_bmad/custom/\n' >> .gitignore
+
+git subtree add --prefix=_bmad/custom \
+  https://github.com/stefanoginella/bmad-customizations.git main --squash
+
+bash _bmad/custom/scripts/doctor.sh
+```
+
+`git subtree add` needs the prefix to **not exist**. If the project already has
+a `_bmad/custom/`, remove it first:
+
+```bash
+git rm -r --cached _bmad/custom && rm -rf _bmad/custom
+git commit -m "chore(bmad): move custom pack to a subtree"
+```
+
+Prefer a short name? Register the remote once per project, then use
+`bmad-pack` in place of the URL in every command below:
+
+```bash
+git remote add bmad-pack https://github.com/stefanoginella/bmad-customizations.git
+```
+
+## Get improvements
+
+```bash
+git subtree pull --prefix=_bmad/custom \
+  https://github.com/stefanoginella/bmad-customizations.git main --squash
+
+bash _bmad/custom/scripts/doctor.sh
+```
+
+## Send improvements back
+
+```bash
+bash _bmad/custom/scripts/doctor.sh   # catches strays BEFORE they leave
+
+git subtree push --prefix=_bmad/custom \
+  https://github.com/stefanoginella/bmad-customizations.git main
+```
+
+---
+
+## Requirements
+
+- **`codex` or `claude` on `PATH`.** `external-review.sh` prefers the CLI that is
+  not hosting the session, and falls back to the other. With neither installed
+  it stops with `EXTERNAL_REVIEW_ERROR` — it does **not** skip quietly.
+  With only **one** installed, the fallback runs the "external" review on the
+  same model that hosts the session. It still passes, but it is no longer
+  independent, which is the entire point of the layer. The doctor warns on this.
+- **`uv`** — the doctor needs it to run the two Python checks.
+- **BMad installed in the target project**, with `_bmad/scripts/` present.
+- No install or build step. `render_skill.py` runs when a skill loads and caches
+  the result under `_bmad/render/`. Drop the files in and the next skill run
+  picks them up.
+
+The reviewer models are **pinned** at the top of `scripts/external-review.sh`.
+That is deliberate: a review that follows whatever model was last selected is
+not reproducible, and two runs of the same diff stop being comparable.
+
+---
+
 ## Check the pack: `doctor.sh`
 
 ```bash
@@ -72,75 +141,6 @@ layers. Wall clock is the slowest single layer, not the sum.
 
 ---
 
-## Requirements
-
-- **`codex` or `claude` on `PATH`.** `external-review.sh` prefers the CLI that is
-  not hosting the session, and falls back to the other. With neither installed
-  it stops with `EXTERNAL_REVIEW_ERROR` — it does **not** skip quietly.
-  With only **one** installed, the fallback runs the "external" review on the
-  same model that hosts the session. It still passes, but it is no longer
-  independent, which is the entire point of the layer. The doctor warns on this.
-- **`uv`** — the doctor needs it to run the two Python checks.
-- **BMad installed in the target project**, with `_bmad/scripts/` present.
-- No install or build step. `render_skill.py` runs when a skill loads and caches
-  the result under `_bmad/render/`. Drop the files in and the next skill run
-  picks them up.
-
-The reviewer models are **pinned** at the top of `scripts/external-review.sh`.
-That is deliberate: a review that follows whatever model was last selected is
-not reproducible, and two runs of the same diff stop being comparable.
-
----
-
-## Add the pack to a project
-
-```bash
-cd /path/to/project
-
-# BMad ignore rule — skip if the project already has it
-printf '_bmad/*\n!_bmad/custom/\n' >> .gitignore
-
-git subtree add --prefix=_bmad/custom \
-  https://github.com/stefanoginella/bmad-customizations.git main --squash
-
-bash _bmad/custom/scripts/doctor.sh
-```
-
-`git subtree add` needs the prefix to **not exist**. If the project already has
-a `_bmad/custom/`, remove it first:
-
-```bash
-git rm -r --cached _bmad/custom && rm -rf _bmad/custom
-git commit -m "chore(bmad): move custom pack to a subtree"
-```
-
-Prefer a short name? Register the remote once per project, then use
-`bmad-pack` in place of the URL in every command below:
-
-```bash
-git remote add bmad-pack https://github.com/stefanoginella/bmad-customizations.git
-```
-
-## Get improvements
-
-```bash
-git subtree pull --prefix=_bmad/custom \
-  https://github.com/stefanoginella/bmad-customizations.git main --squash
-
-bash _bmad/custom/scripts/doctor.sh
-```
-
-## Send improvements back
-
-```bash
-bash _bmad/custom/scripts/doctor.sh   # catches strays BEFORE they leave
-
-git subtree push --prefix=_bmad/custom \
-  https://github.com/stefanoginella/bmad-customizations.git main
-```
-
----
-
 ## The one rule
 
 **`git subtree push` sends the whole prefix.** A project-only override left in
@@ -188,3 +188,9 @@ resolved from the project root only. That is why this pack exists.
 Use the `bmad-customize` skill (menu code `BC`) in a **fresh context window**. It
 scans what is customizable, picks the right scope, writes the TOML, and verifies
 the merge. No hand-authoring needed.
+
+---
+
+## License
+
+MIT — see [LICENSE](./LICENSE).
